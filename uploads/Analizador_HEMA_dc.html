@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Barlow:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+  <script src="./weapons/weapons.js"></script>
+  <style>
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;height:100%;background:#0e151d;}
+    @keyframes hemaSpin{to{transform:rotate(360deg);}}
+    @keyframes hemaFade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+    ::-webkit-scrollbar{width:10px;height:10px;}
+    ::-webkit-scrollbar-track{background:#0e151d;}
+    ::-webkit-scrollbar-thumb{background:#2a3a4a;border-radius:6px;border:2px solid #0e151d;}
+    ::-webkit-scrollbar-thumb:hover{background:#3a4f63;}
+    textarea{font-family:'Barlow',sans-serif;}
+    input[type=number]{-moz-appearance:textfield;}
+  </style>
+</helmet>
+<div style="height:100vh;width:100%;display:flex;flex-direction:column;background:#0e151d;color:#c7d2dd;font-family:'Barlow',sans-serif;overflow:hidden;">
+
+  <!-- ===== HEADER ===== -->
+  <header style="height:54px;flex:0 0 54px;background:linear-gradient(180deg,#1b2735,#16202b);border-bottom:1px solid #2a3a4a;display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-shadow:0 2px 10px rgba(0,0,0,.35);z-index:5;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:#9fb3c6;font-size:22px;line-height:1;transform:rotate(0deg);">⚔</div>
+      <div style="font-family:'Oswald',sans-serif;font-weight:600;font-size:19px;letter-spacing:1.5px;color:#e6edf4;">HEMA POSES<span style="color:#7d93a8;font-weight:400;"> · ANALIZADOR DE ESGRIMA</span></div>
+    </div>
+
+  </header>
+
+  <!-- ===== MAIN ===== -->
+  <div style="flex:1;display:flex;min-height:0;">
+
+    <!-- ===== LEFT: viewport + notes ===== -->
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0;padding:12px;gap:12px;">
+
+      <!-- VIEWPORT -->
+      <div style="flex:1;position:relative;min-height:0;border:1px solid #2a3a4a;border-radius:6px;overflow:hidden;background:radial-gradient(120% 120% at 50% 18%,#16222f 0%,#0c131b 70%);box-shadow:inset 0 0 60px rgba(0,0,0,.5);">
+        <div ref="{{ mountRef }}" style="position:absolute;inset:0;"></div>
+
+        <!-- floating rival labels -->
+        <div ref="{{ labelRefR1 }}" style="position:absolute;left:0;top:0;transform:translate(-9999px,-9999px);pointer-events:none;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:1.5px;font-size:15px;color:#86d27a;text-shadow:0 1px 4px rgba(0,0,0,.8);white-space:nowrap;">RIVAL 1 · VERDE</div>
+        <div ref="{{ labelRefR2 }}" style="position:absolute;left:0;top:0;transform:translate(-9999px,-9999px);pointer-events:none;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:1.5px;font-size:15px;color:#f08a7e;text-shadow:0 1px 4px rgba(0,0,0,.8);white-space:nowrap;">RIVAL 2 · ROJO</div>
+
+        <!-- top-right toolbar -->
+        <div style="position:absolute;top:12px;right:12px;display:flex;gap:7px;z-index:3;">
+          <button onClick="{{ onScreenshot }}" title="Capturar y descargar imagen" style="width:34px;height:34px;border-radius:5px;border:1px solid #34485c;background:#1c2937;color:#c7d2dd;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;">📷</button>
+          <button onClick="{{ onUndo }}" title="Deshacer" disabled="{{ undoDisabled }}" style="width:34px;height:34px;border-radius:5px;border:1px solid #34485c;background:#1c2937;color:#c7d2dd;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:{{ undoOpacity }};">↶</button>
+          <button onClick="{{ onRedo }}" title="Rehacer" disabled="{{ redoDisabled }}" style="width:34px;height:34px;border-radius:5px;border:1px solid #34485c;background:#1c2937;color:#c7d2dd;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:{{ redoOpacity }};">↷</button>
+          <button onClick="{{ onResetPose }}" title="Reiniciar postura" style="width:34px;height:34px;border-radius:5px;border:1px solid #34485c;background:#1c2937;color:#c7d2dd;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;">⟲</button>
+          <button onClick="{{ onToggleSettings }}" title="Ajustes de escena" style="width:34px;height:34px;border-radius:5px;border:1px solid #34485c;background:{{ settingsBtnBg }};color:#c7d2dd;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;">⚙</button>
+        </div>
+
+        <!-- settings popover -->
+        <sc-if value="{{ showSettings }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:54px;right:12px;width:210px;background:#16212d;border:1px solid #34485c;border-radius:7px;padding:12px;z-index:4;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:hemaFade .15s ease;">
+            <div style="font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:1.2px;color:#7d93a8;margin-bottom:9px;">AJUSTES DE ESCENA</div>
+            <label style="display:flex;align-items:center;justify-content:space-between;font-size:13px;padding:6px 0;cursor:pointer;">Cuadrícula<input type="checkbox" checked="{{ setGrid }}" onChange="{{ onToggleGrid }}" style="accent-color:#3b82f6;width:16px;height:16px;cursor:pointer;"></label>
+            <label style="display:flex;align-items:center;justify-content:space-between;font-size:13px;padding:6px 0;cursor:pointer;">Etiquetas<input type="checkbox" checked="{{ setLabels }}" onChange="{{ onToggleLabels }}" style="accent-color:#3b82f6;width:16px;height:16px;cursor:pointer;"></label>
+            <label style="display:flex;align-items:center;justify-content:space-between;font-size:13px;padding:6px 0;cursor:pointer;">Sombras<input type="checkbox" checked="{{ setShadows }}" onChange="{{ onToggleShadows }}" style="accent-color:#3b82f6;width:16px;height:16px;cursor:pointer;"></label>
+            <label style="display:flex;align-items:center;justify-content:space-between;font-size:13px;padding:6px 0;cursor:pointer;">Puntos articul.<input type="checkbox" checked="{{ setHandles }}" onChange="{{ onToggleHandles }}" style="accent-color:#3b82f6;width:16px;height:16px;cursor:pointer;"></label>
+          </div>
+        </sc-if>
+
+        <!-- camera control cluster -->
+        <div style="position:absolute;right:16px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;z-index:3;">
+          <button onClick="{{ camUp }}" title="Orbitar arriba" style="width:38px;height:38px;border-radius:50%;border:1px solid #34485c;background:#1c2937dd;color:#c7d2dd;font-size:16px;cursor:pointer;">▲</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button onClick="{{ camLeft }}" title="Orbitar izquierda" style="width:38px;height:38px;border-radius:50%;border:1px solid #34485c;background:#1c2937dd;color:#c7d2dd;font-size:16px;cursor:pointer;">◀</button>
+            <button onClick="{{ camReset }}" title="Centrar vista" style="width:38px;height:38px;border-radius:50%;border:1px solid #3b82f6;background:#21344a;color:#cfe0f5;font-size:15px;cursor:pointer;">⤢</button>
+            <button onClick="{{ camRight }}" title="Orbitar derecha" style="width:38px;height:38px;border-radius:50%;border:1px solid #34485c;background:#1c2937dd;color:#c7d2dd;font-size:16px;cursor:pointer;">▶</button>
+          </div>
+          <button onClick="{{ camDown }}" title="Orbitar abajo" style="width:38px;height:38px;border-radius:50%;border:1px solid #34485c;background:#1c2937dd;color:#c7d2dd;font-size:16px;cursor:pointer;">▼</button>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button onClick="{{ camZoomIn }}" title="Acercar" style="width:38px;height:34px;border-radius:8px;border:1px solid #34485c;background:#1c2937dd;color:#c7d2dd;font-size:18px;cursor:pointer;">+</button>
+            <button onClick="{{ camZoomOut }}" title="Alejar" style="width:38px;height:34px;border-radius:8px;border:1px solid #34485c;background:#1c2937dd;color:#c7d2dd;font-size:18px;cursor:pointer;">−</button>
+          </div>
+        </div>
+
+        <!-- hint chip -->
+        <div style="position:absolute;left:14px;bottom:12px;font-family:'Space Mono',monospace;font-size:11px;color:#647b90;background:#0e151db8;border:1px solid #243340;border-radius:5px;padding:5px 9px;z-index:3;">arrastra una articulación · arrastra el fondo para orbitar · rueda para zoom</div>
+
+        <!-- loading overlay -->
+        <sc-if value="{{ notReady }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#0c131b;z-index:6;">
+            <div style="width:34px;height:34px;border:3px solid #243340;border-top-color:#3b82f6;border-radius:50%;animation:hemaSpin .8s linear infinite;"></div>
+            <div style="font-family:'Oswald',sans-serif;letter-spacing:1.5px;color:#7d93a8;font-size:13px;">PREPARANDO LA SALA DE ARMAS…</div>
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- NOTES -->
+      <div style="flex:0 0 auto;border:1px solid #2a3a4a;border-radius:6px;background:#14202c;padding:11px 13px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;">
+          <div style="font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:1.4px;color:#9fb3c6;">TUS APUNTES DE ESGRIMA</div>
+          <button onClick="{{ onToggleHistory }}" style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;color:#9fc2f4;background:#1c2c3e;border:1px solid #34485c;border-radius:4px;padding:5px 11px;cursor:pointer;">VER HISTORIAL</button>
+        </div>
+        <textarea value="{{ notesValue }}" onChange="{{ onNotes }}" placeholder="Escribe aquí tus observaciones de la clase: correcciones de ángulo, tiempos de reacción, medidas de distancia…" style="width:100%;height:84px;resize:none;background:#0e1822;border:1px solid #26333f;border-radius:5px;color:#d6e0ea;font-size:13.5px;line-height:1.5;padding:9px 11px;outline:none;"></textarea>
+      </div>
+    </div>
+
+    <!-- ===== RIGHT: config panel ===== -->
+    <div style="flex:0 0 376px;width:376px;background:#121b25;border-left:1px solid #2a3a4a;display:flex;flex-direction:column;min-height:0;">
+      <div style="flex:0 0 auto;padding:14px 16px 10px;border-bottom:1px solid #223040;">
+        <div style="font-family:'Oswald',sans-serif;font-weight:600;font-size:16px;letter-spacing:1.6px;color:#e6edf4;">PANEL DE CONFIGURACIÓN</div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;padding:14px 16px 24px;">
+
+        <!-- RIVAL SELECTOR -->
+        <div style="display:flex;gap:9px;margin-bottom:16px;">
+          <button onClick="{{ selectR1 }}" style="flex:1;padding:11px 0;border-radius:6px;border:1.5px solid {{ r1Border }};background:{{ r1Bg }};color:{{ r1Text }};font-family:'Oswald',sans-serif;font-size:13.5px;letter-spacing:1.2px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><span style="width:11px;height:11px;border-radius:3px;background:#6fae5e;display:inline-block;"></span>RIVAL 1</button>
+          <button onClick="{{ selectR2 }}" style="flex:1;padding:11px 0;border-radius:6px;border:1.5px solid {{ r2Border }};background:{{ r2Bg }};color:{{ r2Text }};font-family:'Oswald',sans-serif;font-size:13.5px;letter-spacing:1.2px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;"><span style="width:11px;height:11px;border-radius:3px;background:#cf5c4f;display:inline-block;"></span>RIVAL 2</button>
+        </div>
+
+        <!-- WEAPON -->
+        <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          <span style="width:3px;height:14px;background:{{ accentBar }};border-radius:2px;"></span>
+          <span style="font-family:'Oswald',sans-serif;font-size:12.5px;letter-spacing:1.3px;color:#9fb3c6;">ARMA DE {{ activeNameUpper }}</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:18px;">
+          <button onClick="{{ setRopera }}" style="flex:1;padding:13px 6px;border-radius:6px;border:1.5px solid {{ roperaBorder }};background:{{ roperaBg }};cursor:pointer;text-align:center;">
+            <div style="font-size:18px;line-height:1;margin-bottom:5px;">🤺</div>
+            <div style="font-family:'Barlow',sans-serif;font-size:12.5px;font-weight:600;color:{{ roperaText }};">Ropera</div>
+            <div style="font-family:'Space Mono',monospace;font-size:9px;color:#647b90;margin-top:2px;">una mano</div>
+          </button>
+          <button onClick="{{ setEspada }}" style="flex:1;padding:13px 6px;border-radius:6px;border:1.5px solid {{ espadaBorder }};background:{{ espadaBg }};cursor:pointer;text-align:center;">
+            <div style="font-size:18px;line-height:1;margin-bottom:5px;">⚔️</div>
+            <div style="font-family:'Barlow',sans-serif;font-size:12.5px;font-weight:600;color:{{ espadaText }};">Espada Larga</div>
+            <div style="font-family:'Space Mono',monospace;font-size:9px;color:#647b90;margin-top:2px;">dos manos</div>
+          </button>
+        </div>
+
+        <!-- PRESETS -->
+        <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          <span style="width:3px;height:14px;background:{{ accentBar }};border-radius:2px;"></span>
+          <span style="font-family:'Oswald',sans-serif;font-size:12.5px;letter-spacing:1.3px;color:#9fb3c6;">POSTURAS PREDEFINIDAS</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px;">
+          <sc-for list="{{ presetsActive }}" as="p" hint-placeholder-count="6">
+            <div style="position:relative;">
+              <sc-if value="{{ p.isEditing }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:7px;border-radius:6px;border:1.5px solid #3b82f6;background:#0d1929;">
+                  <input value="{{ p.editVal }}" onChange="{{ p.onEditInput }}" style="width:100%;background:#0c141d;border:1px solid #3a5c8e;border-radius:4px;color:#d6e0ea;font-size:11px;padding:4px 6px;outline:none;margin-bottom:5px;">
+                  <button onClick="{{ p.onUpdatePos }}" style="width:100%;padding:4px 2px;margin-bottom:4px;border-radius:4px;border:1px solid #2a3e54;background:#142030;color:#7fb3e0;font-size:10px;font-family:'Oswald',sans-serif;letter-spacing:.4px;cursor:pointer;">↩ USAR POS. ACTUAL</button>
+                  <div style="display:flex;gap:4px;">
+                    <button onClick="{{ p.onCommitEdit }}" style="flex:1;padding:4px 2px;border-radius:4px;border:none;background:#2559b0;color:#fff;font-size:10px;font-family:'Oswald',sans-serif;cursor:pointer;">✓ OK</button>
+                    <button onClick="{{ p.onCancelEdit }}" style="flex:1;padding:4px 2px;border-radius:4px;border:1px solid #34485c;background:#1c2937;color:#9aa9b8;font-size:10px;cursor:pointer;">✕</button>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ p.notEditing }}" hint-placeholder-val="{{ true }}">
+                <div onClick="{{ p.onApply }}" style="padding:10px 6px;border-radius:6px;border:1px solid {{ p.border }};background:{{ p.bg }};cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:44px;user-select:none;">
+                  <span style="font-family:'Barlow',sans-serif;font-size:12px;font-weight:600;color:{{ p.text }};text-align:center;line-height:1.25;">{{ p.label }}</span>
+                </div>
+                <button onClick="{{ p.onEdit }}" title="Renombrar / actualizar postura" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#1c2937;border:1px solid #3a5070;color:#8a99a8;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;padding:0;line-height:1;">✎</button>
+                <sc-if value="{{ p.showDelete }}" hint-placeholder-val="{{ false }}">
+                  <button onClick="{{ p.onDelete }}" title="Eliminar postura" style="position:absolute;top:-6px;left:-6px;width:18px;height:18px;border-radius:50%;background:#8b2020;border:1.5px solid #c53030;color:#fff;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;padding:0;line-height:1;">×</button>
+                </sc-if>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- SAVE CUSTOM PRESET -->
+        <div style="display:flex;gap:8px;margin-bottom:18px;">
+          <input value="{{ newPresetName }}" onChange="{{ onNewPresetName }}" placeholder="Nombre de la nueva postura…" style="flex:1;background:#0c141d;border:1px solid #26333f;border-radius:6px;color:#d6e0ea;font-size:12px;padding:8px 10px;outline:none;min-width:0;">
+          <button onClick="{{ onSavePreset }}" title="Guardar postura actual como predefinida" style="flex:0 0 auto;padding:8px 12px;border-radius:6px;border:none;background:{{ accentBar }};color:#fff;font-size:11px;font-family:'Oswald',sans-serif;letter-spacing:.8px;cursor:pointer;white-space:nowrap;">✦ GUARDAR</button>
+        </div>
+
+        <!-- FINE ADJUST -->
+        <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+          <span style="width:3px;height:14px;background:{{ accentBar }};border-radius:2px;"></span>
+          <span style="font-family:'Oswald',sans-serif;font-size:12.5px;letter-spacing:1.3px;color:#9fb3c6;">AJUSTE FINO · <span style="color:{{ activeHex }};">{{ activeNameShort }}</span></span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:18px;">
+          <sc-for list="{{ groups }}" as="g" hint-placeholder-count="6">
+            <div style="border:1px solid #243340;border-radius:6px;overflow:hidden;background:#0f1822;">
+              <button onClick="{{ g.onToggle }}" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:{{ g.headBg }};border:none;cursor:pointer;color:#c7d2dd;">
+                <span style="font-family:'Barlow',sans-serif;font-weight:600;font-size:12.5px;letter-spacing:.3px;">{{ g.label }}</span>
+                <span style="font-size:11px;color:#7d93a8;transform:{{ g.caret }};transition:transform .15s;">▼</span>
+              </button>
+              <sc-if value="{{ g.open }}" hint-placeholder-val="{{ true }}">
+                <div style="padding:6px 12px 11px;display:flex;flex-direction:column;gap:8px;">
+                  <sc-for list="{{ g.sliders }}" as="s" hint-placeholder-count="4">
+                    <div style="display:grid;grid-template-columns:96px 1fr 50px;align-items:center;gap:8px;">
+                      <span style="font-size:11.5px;color:#9aa9b8;line-height:1.2;">{{ s.label }}</span>
+                      <input type="range" min="{{ s.min }}" max="{{ s.max }}" step="{{ s.step }}" value="{{ s.value }}" onInput="{{ s.onInput }}" style="width:100%;accent-color:{{ activeHex }};height:4px;cursor:pointer;">
+                      <input type="number" min="{{ s.min }}" max="{{ s.max }}" step="{{ s.step }}" value="{{ s.display }}" onInput="{{ s.onInput }}" style="width:50px;background:#0c141d;border:1px solid #26333f;border-radius:4px;color:#d6e0ea;font-size:11.5px;font-family:'Space Mono',monospace;padding:4px 5px;text-align:right;outline:none;">
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- ACTIONS -->
+        <div style="display:flex;flex-direction:column;gap:9px;margin-bottom:18px;">
+          <div style="display:flex;gap:8px;">
+            <input value="{{ sceneName }}" onChange="{{ onSceneName }}" placeholder="Nombre de la escena…" style="flex:1;background:#0c141d;border:1px solid #26333f;border-radius:6px;color:#d6e0ea;font-size:13px;padding:9px 11px;outline:none;">
+          </div>
+          <button onClick="{{ onSaveScene }}" style="width:100%;padding:12px;border-radius:6px;border:none;background:linear-gradient(180deg,#2f6fd6,#2559b0);color:#fff;font-family:'Oswald',sans-serif;font-size:13.5px;letter-spacing:1.2px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 8px rgba(37,89,176,.35);">💾 GUARDAR ESCENA</button>
+        </div>
+
+        <!-- SAVED SCENES -->
+        <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+          <span style="width:3px;height:14px;background:{{ accentBar }};border-radius:2px;"></span>
+          <span style="font-family:'Oswald',sans-serif;font-size:12.5px;letter-spacing:1.3px;color:#9fb3c6;">MIS APUNTES Y ESCENAS</span>
+        </div>
+        <sc-if value="{{ noScenes }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:12px;color:#647b90;padding:10px 2px;font-style:italic;">Aún no has guardado ninguna escena. Posiciona a tus rivales y pulsa «Guardar escena».</div>
+        </sc-if>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <sc-for list="{{ scenes }}" as="sc" hint-placeholder-count="0">
+            <div style="border:1px solid #243340;border-radius:6px;background:#0f1822;padding:9px 11px;display:flex;align-items:center;gap:10px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:600;color:#d6e0ea;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ sc.name }}</div>
+                <div style="font-family:'Space Mono',monospace;font-size:10px;color:#647b90;">{{ sc.when }}</div>
+              </div>
+              <button onClick="{{ sc.onLoad }}" title="Cargar" style="padding:6px 10px;border-radius:5px;border:1px solid #34485c;background:#1c2c3e;color:#9fc2f4;font-size:11px;font-family:'Oswald',sans-serif;letter-spacing:.5px;cursor:pointer;">CARGAR</button>
+              <button onClick="{{ sc.onDelete }}" title="Eliminar" style="width:28px;height:28px;border-radius:5px;border:1px solid #4a2a2a;background:#241616;color:#d98a7e;font-size:13px;cursor:pointer;">✕</button>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HISTORY MODAL ===== -->
+  <sc-if value="{{ showHistory }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ onToggleHistory }}" style="position:fixed;inset:0;background:rgba(6,10,15,.7);display:flex;align-items:center;justify-content:center;z-index:50;animation:hemaFade .15s ease;">
+      <div onClick="{{ stop }}" style="width:560px;max-width:92vw;max-height:80vh;background:#121b25;border:1px solid #34485c;border-radius:10px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6);">
+        <div style="padding:16px 20px;border-bottom:1px solid #223040;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-family:'Oswald',sans-serif;font-size:16px;letter-spacing:1.4px;color:#e6edf4;">HISTORIAL DE ESCENAS Y APUNTES</span>
+          <button onClick="{{ onToggleHistory }}" style="width:30px;height:30px;border-radius:6px;border:1px solid #34485c;background:#1c2937;color:#c7d2dd;font-size:15px;cursor:pointer;">✕</button>
+        </div>
+        <div style="overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:11px;">
+          <sc-if value="{{ noScenes }}" hint-placeholder-val="{{ false }}">
+            <div style="color:#647b90;font-style:italic;padding:20px 0;text-align:center;">No hay escenas guardadas todavía.</div>
+          </sc-if>
+          <sc-for list="{{ scenesFull }}" as="sc" hint-placeholder-count="0">
+            <div style="border:1px solid #243340;border-radius:7px;background:#0f1822;padding:13px 15px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:14px;font-weight:600;color:#e6edf4;">{{ sc.name }}</span>
+                <span style="font-family:'Space Mono',monospace;font-size:11px;color:#647b90;">{{ sc.when }}</span>
+              </div>
+              <div style="font-size:12.5px;color:#9aa9b8;line-height:1.5;white-space:pre-wrap;margin-bottom:10px;">{{ sc.note }}</div>
+              <div style="display:flex;gap:8px;">
+                <button onClick="{{ sc.onLoad }}" style="padding:7px 14px;border-radius:5px;border:1px solid #34485c;background:#1c2c3e;color:#9fc2f4;font-size:12px;font-family:'Oswald',sans-serif;letter-spacing:.6px;cursor:pointer;">CARGAR ESCENA</button>
+                <button onClick="{{ sc.onDelete }}" style="padding:7px 14px;border-radius:5px;border:1px solid #4a2a2a;background:#241616;color:#d98a7e;font-size:12px;font-family:'Oswald',sans-serif;letter-spacing:.6px;cursor:pointer;">ELIMINAR</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- toast -->
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1c2c3e;border:1px solid #3b82f6;color:#d6e0ea;padding:10px 20px;border-radius:8px;font-size:13px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.5);animation:hemaFade .2s ease;">{{ toast }}</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;userName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Kai&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  state = {
+    ready: false,
+    active: 'r1',
+    weapons: { r1: 'ropera', r2: 'ropera' },
+    pose: null,
+    openGroup: 'brazoDer',
+    notes: '',
+    customPresets: { ropera: [], espadalarga: [] },
+    newPresetName: '',
+    scenes: [],
+    sceneName: '',
+    showSettings: false,
+    showHistory: false,
+    settings: { grid: true, labels: true, shadows: true, handles: true },
+    undoLen: 0,
+    redoLen: 0,
+    toast: '',
+    renamedPresets: {},
+    editingPresetId: null,
+    editingPresetValue: '',
+  };
+
+  // ---------- scratch objects (reused per frame to avoid GC pressure) ----------
+  _scrV3a = null; _scrV3b = null; _scrV3c = null; _scrPlane = null; _scrQuat = null;
+
+  _initScratch() {
+    const THREE = window.THREE;
+    this._scrV3a  = new THREE.Vector3();
+    this._scrV3b  = new THREE.Vector3();
+    this._scrV3c  = new THREE.Vector3();
+    this._scrPlane = new THREE.Plane();
+    this._scrQuat  = new THREE.Quaternion();
+  }
+
+  // ---------- constants ----------
+  KEY = 'hema_poses_v1';
+  D2R = Math.PI / 180;
+  R2D = 180 / Math.PI;
+
+  GROUPS_DEF = [
+    { key: 'cuerpo', label: 'Cuerpo y posición', items: [
+      { joint: 'transform', axis: 'posX', label: 'Posición X', min: -3, max: 3, step: 0.05, deg: false },
+      { joint: 'transform', axis: 'posZ', label: 'Posición Z', min: -2.5, max: 2.5, step: 0.05, deg: false },
+      { joint: 'transform', axis: 'faceY', label: 'Giro cuerpo', min: -180, max: 180, step: 1, deg: true },
+      { joint: 'spine', axis: 'x', label: 'Inclin. tronco', min: -45, max: 45, step: 1, deg: true },
+      { joint: 'spine', axis: 'y', label: 'Giro tronco', min: -60, max: 60, step: 1, deg: true },
+      { joint: 'spine', axis: 'z', label: 'Tronco lateral', min: -35, max: 35, step: 1, deg: true },
+      { joint: 'head', axis: 'x', label: 'Cabeza asentir', min: -45, max: 45, step: 1, deg: true },
+      { joint: 'head', axis: 'y', label: 'Cabeza girar', min: -80, max: 80, step: 1, deg: true },
+      { joint: 'head', axis: 'z', label: 'Cabeza ladear', min: -40, max: 40, step: 1, deg: true },
+    ]},
+    { key: 'brazoDer', label: 'Brazo derecho (arma)', items: [
+      { joint: 'shoulderR', axis: 'x', label: 'Hombro adel.', min: -180, max: 90, step: 1, deg: true },
+      { joint: 'shoulderR', axis: 'z', label: 'Hombro abrir', min: -120, max: 60, step: 1, deg: true },
+      { joint: 'shoulderR', axis: 'y', label: 'Hombro rotar', min: -90, max: 90, step: 1, deg: true },
+      { joint: 'elbowR', axis: 'x', label: 'Codo flexión', min: -150, max: 10, step: 1, deg: true },
+      { joint: 'elbowR', axis: 'y', label: 'Antebrazo rot.', min: -90, max: 90, step: 1, deg: true },
+      { joint: 'wristR', axis: 'x', label: 'Muñeca flex.', min: -70, max: 70, step: 1, deg: true },
+      { joint: 'wristR', axis: 'z', label: 'Muñeca lat.', min: -45, max: 45, step: 1, deg: true },
+    ]},
+    { key: 'brazoIzq', label: 'Brazo izquierdo', items: [
+      { joint: 'shoulderL', axis: 'x', label: 'Hombro adel.', min: -180, max: 90, step: 1, deg: true },
+      { joint: 'shoulderL', axis: 'z', label: 'Hombro abrir', min: -60, max: 120, step: 1, deg: true },
+      { joint: 'shoulderL', axis: 'y', label: 'Hombro rotar', min: -90, max: 90, step: 1, deg: true },
+      { joint: 'elbowL', axis: 'x', label: 'Codo flexión', min: -150, max: 10, step: 1, deg: true },
+      { joint: 'elbowL', axis: 'y', label: 'Antebrazo rot.', min: -90, max: 90, step: 1, deg: true },
+      { joint: 'wristL', axis: 'x', label: 'Muñeca flex.', min: -70, max: 70, step: 1, deg: true },
+      { joint: 'wristL', axis: 'z', label: 'Muñeca lat.', min: -45, max: 45, step: 1, deg: true },
+    ]},
+    { key: 'piernaDer', label: 'Pierna derecha', items: [
+      { joint: 'hipR', axis: 'x', label: 'Cadera adel.', min: -120, max: 60, step: 1, deg: true },
+      { joint: 'hipR', axis: 'z', label: 'Cadera abrir', min: -45, max: 60, step: 1, deg: true },
+      { joint: 'hipR', axis: 'y', label: 'Cadera rotar', min: -60, max: 60, step: 1, deg: true },
+      { joint: 'kneeR', axis: 'x', label: 'Rodilla flex.', min: -10, max: 150, step: 1, deg: true },
+      { joint: 'ankleR', axis: 'x', label: 'Tobillo', min: -40, max: 40, step: 1, deg: true },
+    ]},
+    { key: 'piernaIzq', label: 'Pierna izquierda', items: [
+      { joint: 'hipL', axis: 'x', label: 'Cadera adel.', min: -120, max: 60, step: 1, deg: true },
+      { joint: 'hipL', axis: 'z', label: 'Cadera abrir', min: -60, max: 45, step: 1, deg: true },
+      { joint: 'hipL', axis: 'y', label: 'Cadera rotar', min: -60, max: 60, step: 1, deg: true },
+      { joint: 'kneeL', axis: 'x', label: 'Rodilla flex.', min: -10, max: 150, step: 1, deg: true },
+      { joint: 'ankleL', axis: 'x', label: 'Tobillo', min: -40, max: 40, step: 1, deg: true },
+    ]},
+    { key: 'arma', label: 'Arma', items: [
+      { joint: 'sword', axis: 'x', label: 'Ángulo hoja', min: -120, max: 120, step: 1, deg: true },
+      { joint: 'sword', axis: 'z', label: 'Inclin. hoja', min: -90, max: 90, step: 1, deg: true },
+    ]},
+  ];
+
+  PRESETS = {
+    ropera: [
+      { id: 'reposo', label: 'Reposo', glyph: '🧍', desc: 'Posición de descanso' },
+      { id: 'enguardia', label: 'En Guardia', glyph: '🤺', desc: 'Guardia de ropera, terza' },
+      { id: 'estocada', label: 'Estocada', glyph: '➤', desc: 'Afondo / lunge recto' },
+      { id: 'guardiaalta', label: 'Guardia Alta', glyph: '↑', desc: 'Punta arriba' },
+      { id: 'quarta', label: 'Quarta', glyph: '↗', desc: 'Cuarta, mano en supinación' },
+      { id: 'invito', label: 'Invito', glyph: '↘', desc: 'Invitación baja' },
+    ],
+    espadalarga: [
+      { id: 'reposo', label: 'Reposo', glyph: '🧍', desc: 'Posición de descanso' },
+      { id: 'vomtag', label: 'Vom Tag', glyph: '🗡', desc: 'Guardia del tejado, alta' },
+      { id: 'pflug', label: 'Pflug', glyph: '⤵', desc: 'Guardia del arado' },
+      { id: 'ochs', label: 'Ochs', glyph: '⤴', desc: 'Guardia del buey' },
+      { id: 'alber', label: 'Alber', glyph: '⤓', desc: 'Guardia del necio, baja' },
+      { id: 'langort', label: 'Langort', glyph: '➤', desc: 'Punta larga extendida' },
+    ],
+  };
+
+  // ---------- bone map (joint key → Mixamo bone name) ----------
+  BONE_MAP = {
+    spine:     'mixamorig:Spine',
+    head:      'mixamorig:Head',
+    shoulderR: 'mixamorig:RightArm',
+    elbowR:    'mixamorig:RightForeArm',
+    wristR:    'mixamorig:RightHand',
+    shoulderL: 'mixamorig:LeftArm',
+    elbowL:    'mixamorig:LeftForeArm',
+    wristL:    'mixamorig:LeftHand',
+    hipR:      'mixamorig:RightUpLeg',
+    kneeR:     'mixamorig:RightLeg',
+    ankleR:    'mixamorig:RightFoot',
+    hipL:      'mixamorig:LeftUpLeg',
+    kneeL:     'mixamorig:LeftLeg',
+    ankleL:    'mixamorig:LeftFoot',
+  };
+
+  // ---------- pose data ----------
+  zero() { return { x: 0, y: 0, z: 0 }; }
+
+  basePose(side) {
+    const posX = side === 'r1' ? -0.95 : 0.95;
+    const faceY = side === 'r1' ? 90 : -90;
+    return { transform: { posX, posZ: 0, faceY }, joints: this.poseByName('enguardia') };
+  }
+
+  poseByName(name) {
+    const j = {
+      spine: this.zero(), head: this.zero(),
+      shoulderR: this.zero(), elbowR: this.zero(), wristR: this.zero(),
+      shoulderL: this.zero(), elbowL: this.zero(), wristL: this.zero(),
+      hipR: this.zero(), kneeR: this.zero(), ankleR: this.zero(),
+      hipL: this.zero(), kneeL: this.zero(), ankleL: this.zero(),
+      sword: { x: 0, y: 0, z: 0 },
+    };
+    const set = (n, x, y, z) => { j[n] = { x: x || 0, y: y || 0, z: z || 0 }; };
+    switch (name) {
+      case 'reposo':
+        set('shoulderR', 4, 0, -8); set('elbowR', -12, 0, 0);
+        set('shoulderL', 4, 0, 8); set('elbowL', -12, 0, 0);
+        set('hipR', 2, 0, 4); set('hipL', 2, 0, -4);
+        set('sword', 0, 0, 0);
+        break;
+      case 'enguardia':
+        set('spine', 6, -18, 0); set('head', 4, 18, 0);
+        set('shoulderR', -78, 0, -6); set('elbowR', -18, 0, 0); set('wristR', 8, 0, 0);
+        set('shoulderL', 26, 0, 64); set('elbowL', -74, 0, 0);
+        set('hipR', -28, 0, 8); set('kneeR', 34, 0, 0); set('ankleR', -6, 0, 0);
+        set('hipL', 22, 0, -10); set('kneeL', 30, 0, 0); set('ankleL', 0, 0, 0);
+        set('sword', 6, 0, 0);
+        break;
+      case 'estocada':
+        set('spine', 16, -14, 0); set('head', 0, 14, 0);
+        set('shoulderR', -94, 0, -2); set('elbowR', -6, 0, 0); set('wristR', 4, 0, 0);
+        set('shoulderL', 64, 0, 70); set('elbowL', -30, 0, 0);
+        set('hipR', -64, 0, 10); set('kneeR', 78, 0, 0); set('ankleR', -10, 0, 0);
+        set('hipL', 26, 0, -8); set('kneeL', 6, 0, 0); set('ankleL', 8, 0, 0);
+        set('sword', 4, 0, 0);
+        break;
+      case 'guardiaalta':
+        set('spine', -4, -16, 0); set('head', -6, 16, 0);
+        set('shoulderR', -150, 0, -10); set('elbowR', -30, 0, 0); set('wristR', 0, 0, 0);
+        set('shoulderL', 30, 0, 60); set('elbowL', -70, 0, 0);
+        set('hipR', -22, 0, 8); set('kneeR', 28, 0, 0);
+        set('hipL', 18, 0, -10); set('kneeL', 26, 0, 0);
+        set('sword', 30, 0, 0);
+        break;
+      case 'quarta':
+        set('spine', 8, -22, 0); set('head', 2, 22, 0);
+        set('shoulderR', -80, 30, 0); set('elbowR', -20, 0, 0); set('wristR', 0, 0, -30);
+        set('shoulderL', 24, 0, 66); set('elbowL', -78, 0, 0);
+        set('hipR', -26, 0, 8); set('kneeR', 32, 0, 0);
+        set('hipL', 20, 0, -10); set('kneeL', 28, 0, 0);
+        set('sword', 6, 0, 0);
+        break;
+      case 'invito':
+        set('spine', 10, -16, 0); set('head', 0, 16, 0);
+        set('shoulderR', -52, 0, -6); set('elbowR', -24, 0, 0); set('wristR', -10, 0, 0);
+        set('shoulderL', 28, 0, 62); set('elbowL', -72, 0, 0);
+        set('hipR', -24, 0, 8); set('kneeR', 32, 0, 0);
+        set('hipL', 20, 0, -10); set('kneeL', 28, 0, 0);
+        set('sword', -18, 0, 0);
+        break;
+      // ---- longsword ----
+      case 'vomtag':
+        set('spine', -2, -14, 0); set('head', -4, 14, 0);
+        set('shoulderR', -158, 0, -14); set('elbowR', -42, 0, 0); set('wristR', 0, 0, 0);
+        set('shoulderL', -150, 0, 18); set('elbowL', -46, 0, 0);
+        set('hipR', -20, 0, 8); set('kneeR', 26, 0, 0);
+        set('hipL', 16, 0, -10); set('kneeL', 24, 0, 0);
+        set('sword', 40, 0, 0);
+        break;
+      case 'pflug':
+        set('spine', 12, -16, 0); set('head', 2, 16, 0);
+        set('shoulderR', -64, 0, -2); set('elbowR', -54, 0, 0); set('wristR', 0, 0, 0);
+        set('shoulderL', -58, 0, 16); set('elbowL', -58, 0, 0);
+        set('hipR', -28, 0, 8); set('kneeR', 34, 0, 0);
+        set('hipL', 22, 0, -10); set('kneeL', 30, 0, 0);
+        set('sword', -28, 0, 0);
+        break;
+      case 'ochs':
+        set('spine', 4, -26, 0); set('head', 0, 26, 0);
+        set('shoulderR', -104, 40, 0); set('elbowR', -78, 0, 0); set('wristR', 0, 0, 0);
+        set('shoulderL', -96, 0, 30); set('elbowL', -64, 0, 0);
+        set('hipR', -24, 0, 8); set('kneeR', 30, 0, 0);
+        set('hipL', 18, 0, -10); set('kneeL', 26, 0, 0);
+        set('sword', -10, 0, 0);
+        break;
+      case 'alber':
+        set('spine', 14, -10, 0); set('head', -4, 10, 0);
+        set('shoulderR', -34, 0, -4); set('elbowR', -16, 0, 0); set('wristR', 0, 0, 0);
+        set('shoulderL', -30, 0, 10); set('elbowL', -18, 0, 0);
+        set('hipR', -26, 0, 8); set('kneeR', 36, 0, 0);
+        set('hipL', 20, 0, -10); set('kneeL', 30, 0, 0);
+        set('sword', -60, 0, 0);
+        break;
+      case 'langort':
+        set('spine', 8, -16, 0); set('head', 0, 16, 0);
+        set('shoulderR', -88, 0, -4); set('elbowR', -8, 0, 0); set('wristR', 0, 0, 0);
+        set('shoulderL', -84, 0, 12); set('elbowL', -14, 0, 0);
+        set('hipR', -26, 0, 8); set('kneeR', 32, 0, 0);
+        set('hipL', 20, 0, -10); set('kneeL', 28, 0, 0);
+        set('sword', 2, 0, 0);
+        break;
+    }
+    return j;
+  }
+
+  // ---------- lifecycle ----------
+  componentDidMount() {
+    const init = () => { this.loadPersisted(); this.initThree(); };
+    if (window.THREE && window.THREE.FBXLoader) { init(); return; }
+    let tries = 0;
+    this._initInterval = setInterval(() => {
+      if (window.THREE && window.THREE.FBXLoader) { clearInterval(this._initInterval); this._initInterval = null; init(); }
+      else if (++tries > 300) { clearInterval(this._initInterval); this._initInterval = null; }
+    }, 40);
+  }
+
+  componentWillUnmount() {
+    // Cancel init polling if Three.js hadn't loaded yet
+    if (this._initInterval) { clearInterval(this._initInterval); this._initInterval = null; }
+    // Cancel animation loop
+    if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; }
+    // Remove event listeners
+    if (this.renderer) {
+      const el = this.renderer.domElement;
+      el.removeEventListener('pointerdown', this.onPointerDown);
+      el.removeEventListener('wheel', this.onWheel);
+    }
+    window.removeEventListener('pointermove', this.onPointerMove);
+    window.removeEventListener('pointerup', this.onPointerUp);
+    // Disconnect ResizeObserver
+    if (this._ro) { this._ro.disconnect(); this._ro = null; }
+    // Dispose all Three.js geometries and materials to free VRAM
+    if (this.scene) {
+      this.scene.traverse((obj) => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+          mats.forEach((m) => {
+            ['map','normalMap','roughnessMap','metalnessMap','emissiveMap','aoMap','alphaMap','envMap'].forEach((k) => { if (m[k]) m[k].dispose(); });
+            m.dispose();
+          });
+        }
+      });
+    }
+    // Dispose renderer and remove canvas
+    if (this.renderer) {
+      this.renderer.dispose();
+      if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+        this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+      }
+      this.renderer = null;
+    }
+    // Clear scene refs
+    this.scene = null; this.camera = null;
+    this.rigs = null; this.dragTargets = null; this.selectTargets = null;
+    // Clear pending timers
+    clearTimeout(this._commitT);
+    clearTimeout(this._notesT);
+    clearTimeout(this._toastT);
+  }
+
+  // ---------- persistence ----------
+  loadPersisted() {
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      if (!raw) { this._initPose(); return; }
+      const data = JSON.parse(raw);
+      this._pose = data.pose || { r1: this.basePose('r1'), r2: this.basePose('r2') };
+      this.setState({
+        pose: this._pose,
+        weapons: data.weapons || { r1: 'ropera', r2: 'ropera' },
+        notes: data.notes || '',
+        customPresets: data.customPresets || { ropera: [], espadalarga: [] },
+        renamedPresets: data.renamedPresets || {},
+        scenes: data.scenes || [],
+        settings: Object.assign({ grid: true, labels: true, shadows: true, handles: true }, data.settings || {}),
+      });
+    } catch (e) { this._initPose(); }
+  }
+
+  _initPose() {
+    this._pose = { r1: this.basePose('r1'), r2: this.basePose('r2') };
+    this.setState({ pose: this._pose });
+  }
+
+  persist() {
+    try {
+      const data = {
+        pose: this._pose,
+        weapons: this.state.weapons,
+        notes: this.state.notes,
+        customPresets: this.state.customPresets,
+        renamedPresets: this.state.renamedPresets,
+        scenes: this.state.scenes,
+        settings: this.state.settings,
+      };
+      localStorage.setItem(this.KEY, JSON.stringify(data));
+    } catch (e) {}
+  }
+
+  // ---------- three setup ----------
+  initThree() {
+    const THREE = window.THREE;
+    const mount = this.mountEl;
+    if (!mount) return;
+    const W = mount.clientWidth || 800, H = mount.clientHeight || 600;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0c131b);
+    scene.fog = new THREE.Fog(0x0c131b, 9, 22);
+    this.scene = scene;
+
+    const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 100);
+    this.camera = camera;
+    this.camTheta = 0; this.camPhi = 1.32; this.camRadius = 4.9;
+    this.camTarget = new THREE.Vector3(0, 1.0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setSize(W, H);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    mount.appendChild(renderer.domElement);
+    renderer.domElement.style.touchAction = 'none';
+    this.renderer = renderer;
+    this._initScratch();
+
+    // lights
+    const hemi = new THREE.HemisphereLight(0x9fb6d0, 0x141a20, 0.85);
+    scene.add(hemi);
+    const key = new THREE.DirectionalLight(0xfff1dd, 1.25);
+    key.position.set(3.5, 7, 4);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.camera.near = 1; key.shadow.camera.far = 30;
+    key.shadow.camera.left = -6; key.shadow.camera.right = 6;
+    key.shadow.camera.top = 6; key.shadow.camera.bottom = -6;
+    key.shadow.bias = -0.0004;
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0x6f8fbf, 0.5);
+    rim.position.set(-5, 4, -5);
+    scene.add(rim);
+    this.keyLight = key;
+
+    // floor
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x10181f, roughness: 0.95, metalness: 0.0 });
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = 0;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const grid = new THREE.GridHelper(40, 80, 0x39536b, 0x223040);
+    grid.position.y = 0.001;
+    grid.material.transparent = true;
+    grid.material.opacity = 0.6;
+    scene.add(grid);
+    this.grid = grid;
+
+    // center reference line
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x2f4658, transparent: true, opacity: 0.5 });
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.002, -3), new THREE.Vector3(0, 0.002, 3)]);
+    scene.add(new THREE.Line(lineGeo, lineMat));
+
+    // selection ring
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x6fae5e, transparent: true, opacity: 0.7, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.42, 48), ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.012;
+    scene.add(ring);
+    this.selRing = ring;
+
+    // load mannequins async (FBX)
+    this.rigs = {};
+    let _loaded = 0;
+    const _onBoth = () => {
+      this.dragTargets = [].concat(this.rigs.r1.dragSpheres, this.rigs.r2.dragSpheres);
+      this.selectTargets = [].concat(this.rigs.r1.selectMeshes, this.rigs.r2.selectMeshes);
+      this.raycaster = new THREE.Raycaster();
+      this.raycaster.params.Line.threshold = 0.05;
+      this._ndc = new THREE.Vector2();
+      this.setWeaponMesh('r1', this.state.weapons.r1);
+      this.setWeaponMesh('r2', this.state.weapons.r2);
+      this.applyAll('r1'); this.applyAll('r2');
+      this.applySettings();
+      this.updateSelRing();
+      this.setState({ ready: true });
+      this.snapshotInit();
+    };
+    this.loadMannequin('r1', 0x6fae5e, (rig) => { this.rigs.r1 = rig; scene.add(rig.root); if (++_loaded === 2) _onBoth(); });
+    this.loadMannequin('r2', 0xcf5c4f, (rig) => { this.rigs.r2 = rig; scene.add(rig.root); if (++_loaded === 2) _onBoth(); });
+
+    // events
+    const el = renderer.domElement;
+    el.addEventListener('pointerdown', this.onPointerDown);
+    window.addEventListener('pointermove', this.onPointerMove);
+    window.addEventListener('pointerup', this.onPointerUp);
+    el.addEventListener('wheel', this.onWheel, { passive: false });
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    this._ro = new ResizeObserver(() => this.onResize());
+    this._ro.observe(mount);
+
+    this.updateCamera();
+    this.animate();
+  }
+
+  onResize() {
+    if (!this.renderer || !this.mountEl) return;
+    const W = this.mountEl.clientWidth, H = this.mountEl.clientHeight;
+    if (!W || !H) return;
+    this.camera.aspect = W / H;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(W, H);
+  }
+
+  // ---------- mannequin (FBX loader) ----------
+  loadMannequin(rival, teamHex, cb) {
+    const THREE = window.THREE;
+    if (!THREE.FBXLoader) { setTimeout(() => this.loadMannequin(rival, teamHex, cb), 80); return; }
+    const loader = new THREE.FBXLoader();
+    loader.load('./models/dummy.fbx', (fbx) => {
+      fbx.animations = [];
+      // FBXLoader auto-scales Mixamo cm→m; verify and correct if still in cm
+      const b0 = new THREE.Box3().setFromObject(fbx);
+      if ((b0.max.y - b0.min.y) > 10) fbx.scale.setScalar(0.01);
+      // Wrap so pose system controls root position/rotation
+      const root = new THREE.Group();
+      const b1 = new THREE.Box3().setFromObject(fbx);
+      fbx.position.y = -b1.min.y; // put feet at y=0
+      root.add(fbx);
+      // Team colour
+      const teamMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(teamHex), roughness: 0.65, metalness: 0.08 });
+      fbx.traverse((c) => {
+        if (c.isMesh) { c.material = teamMat.clone(); c.castShadow = true; c.receiveShadow = false; c.userData.rival = rival; }
+      });
+      // Node/bone lookup
+      const bones = {};
+      fbx.traverse((c) => { if (c.name) bones[c.name] = c; });
+      const headBone = bones['mixamorig:Head'] || fbx;
+      // Sword mount on right hand
+      const rightHand = bones['mixamorig:RightHand'];
+      const swordMount = new THREE.Group();
+      if (rightHand) rightHand.add(swordMount); else root.add(swordMount);
+      // Drag / select targets
+      const dragSpheres = [];
+      const selectMeshes = [];
+      fbx.traverse((c) => { if (c.isMesh) selectMeshes.push(c); });
+      const DRAG_DEFS = [
+        { key: 'spine',     bone: 'mixamorig:Spine2'      },
+        { key: 'head',      bone: 'mixamorig:Head'         },
+        { key: 'shoulderR', bone: 'mixamorig:RightArm'     },
+        { key: 'elbowR',    bone: 'mixamorig:RightForeArm' },
+        { key: 'wristR',    bone: 'mixamorig:RightHand'    },
+        { key: 'shoulderL', bone: 'mixamorig:LeftArm'      },
+        { key: 'elbowL',    bone: 'mixamorig:LeftForeArm'  },
+        { key: 'wristL',    bone: 'mixamorig:LeftHand'     },
+        { key: 'hipR',      bone: 'mixamorig:RightUpLeg'   },
+        { key: 'kneeR',     bone: 'mixamorig:RightLeg'     },
+        { key: 'hipL',      bone: 'mixamorig:LeftUpLeg'    },
+        { key: 'kneeL',     bone: 'mixamorig:LeftLeg'      },
+      ];
+      const showH = this.state.settings.handles;
+      DRAG_DEFS.forEach(({ key, bone: bn }) => {
+        const bone = bones[bn];
+        if (!bone) return;
+        const m = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: showH ? 0.42 : 0.0, roughness: 0.4, depthWrite: false, emissive: new THREE.Color(0) });
+        const s = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), m);
+        s.userData = { rival, rotates: key, grab: true, baseEmissive: 0 };
+        s.visible = showH;
+        bone.add(s); dragSpheres.push(s); selectMeshes.push(s);
+      });
+      // Hips: translate handle
+      const hips = bones['mixamorig:Hips'];
+      if (hips) {
+        const m = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: showH ? 0.42 : 0.0, roughness: 0.4, depthWrite: false, emissive: new THREE.Color(0) });
+        const pm = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), m);
+        pm.userData = { rival, translate: true, grab: true, baseEmissive: 0 };
+        pm.visible = showH;
+        hips.add(pm); dragSpheres.push(pm); selectMeshes.push(pm);
+      }
+      cb({ root, bones, dragSpheres, selectMeshes, headBone, swordMount });
+    }, undefined, (err) => console.error('FBX load error:', err));
+  }
+
+  // ---------- weapons (geometry in weapons/weapons.js) ----------
+  setWeaponMesh(rival, type) {
+    const THREE = window.THREE;
+    const rig = this.rigs[rival];
+    if (!rig || !rig.swordMount) return;
+    const mount = rig.swordMount;
+    // Dispose GPU resources before removing children
+    for (let i = mount.children.length - 1; i >= 0; i--) {
+      const child = mount.children[i];
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
+        else child.material.dispose();
+      }
+      mount.remove(child);
+    }
+    if (window.HEMAWeapons) {
+      if (type === 'ropera') window.HEMAWeapons.buildRopera(THREE, mount);
+      else window.HEMAWeapons.buildEspadaLarga(THREE, mount);
+    }
+  }
+
+  setWeapon(type) {
+    const rival = this.state.active;
+    const weapons = Object.assign({}, this.state.weapons, { [rival]: type });
+    this.setWeaponMesh(rival, type);
+    // snap to that weapon's default guard
+    this._pose[rival].joints = this.poseByName(type === 'ropera' ? 'enguardia' : 'pflug');
+    this.setState({ weapons, pose: this._pose }, () => { this.applyAll(rival); this.snapshot(); this.persist(); });
+  }
+
+  // ---------- apply pose to scene ----------
+  applyAll(rival) {
+    if (!this.rigs || !this.rigs[rival]) return;
+    const p = this._pose[rival];
+    const rig = this.rigs[rival];
+    rig.root.position.x = p.transform.posX;
+    rig.root.position.z = p.transform.posZ;
+    rig.root.rotation.y = p.transform.faceY * this.D2R;
+    for (const name in p.joints) {
+      const bn = this.BONE_MAP[name];
+      const pv = bn && rig.bones[bn];
+      if (!pv) continue;
+      const r = p.joints[name];
+      pv.rotation.set((r.x || 0) * this.D2R, (r.y || 0) * this.D2R, (r.z || 0) * this.D2R, 'XYZ');
+    }
+    if (rival === this.state.active) this.updateSelRing();
+  }
+
+  applyOne(rival, joint, axis, val) {
+    const rig = this.rigs && this.rigs[rival];
+    if (!rig) return;
+    if (joint === 'transform') {
+      if (axis === 'posX') rig.root.position.x = val;
+      else if (axis === 'posZ') rig.root.position.z = val;
+      else if (axis === 'faceY') rig.root.rotation.y = val * this.D2R;
+      this.updateSelRing();
+    } else {
+      const bn = this.BONE_MAP[joint];
+      const pv = bn && rig.bones[bn];
+      if (pv) pv.rotation[axis] = val * this.D2R;
+    }
+  }
+
+  // ---------- camera ----------
+  updateCamera() {
+    if (!this.camera) return;
+    const t = this.camTarget, r = this.camRadius, ph = this.camPhi, th = this.camTheta;
+    this.camera.position.set(
+      t.x + r * Math.sin(ph) * Math.sin(th),
+      t.y + r * Math.cos(ph),
+      t.z + r * Math.sin(ph) * Math.cos(th)
+    );
+    this.camera.lookAt(t);
+  }
+  orbit(dTheta, dPhi) {
+    this.camTheta += dTheta;
+    this.camPhi = Math.max(0.18, Math.min(Math.PI - 0.18, this.camPhi + dPhi));
+    this.updateCamera();
+  }
+  zoom(factor) {
+    this.camRadius = Math.max(1.8, Math.min(11, this.camRadius * factor));
+    this.updateCamera();
+  }
+  camReset = () => { this.camTheta = 0; this.camPhi = 1.32; this.camRadius = 4.9; this.camTarget.set(0, 1.0, 0); this.updateCamera(); };
+  camUp = () => this.orbit(0, -0.16);
+  camDown = () => this.orbit(0, 0.16);
+  camLeft = () => this.orbit(-0.2, 0);
+  camRight = () => this.orbit(0.2, 0);
+  camZoomIn = () => this.zoom(0.85);
+  camZoomOut = () => this.zoom(1.15);
+  onWheel = (e) => { e.preventDefault(); this.zoom(e.deltaY > 0 ? 1.08 : 0.93); };
+
+  // ---------- pointer / drag ----------
+  ndcFromEvent(e) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this._ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this._ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    return this._ndc;
+  }
+
+  onPointerDown = (e) => {
+    if (!this.raycaster) return;
+    const THREE = window.THREE;
+    this.ndcFromEvent(e);
+    this.raycaster.setFromCamera(this._ndc, this.camera);
+
+    if (e.button === 2) { // pan
+      this._panning = true; this._lastX = e.clientX; this._lastY = e.clientY;
+      try { this.renderer.domElement.setPointerCapture(e.pointerId); } catch (x) {}
+      return;
+    }
+
+    const hits = this.raycaster.intersectObjects(this.dragTargets, false);
+    if (hits.length) {
+      const obj = hits[0].object;
+      const rival = obj.userData.rival;
+      if (rival !== this.state.active) this.selectRival(rival);
+      try { this.renderer.domElement.setPointerCapture(e.pointerId); } catch (x) {}
+      if (obj.userData.translate) {
+        this._dragMode = 'translate';
+        this._dragRival = rival;
+      } else {
+        this._dragMode = 'rotate';
+        this._dragRival = rival;
+        const _bn = this.BONE_MAP[obj.userData.rotates];
+        this._dragPivot = _bn && this.rigs[rival].bones[_bn];
+        this._dragJointName = obj.userData.rotates;
+      }
+      return;
+    }
+    // select body?
+    const sel = this.raycaster.intersectObjects(this.selectTargets, false);
+    if (sel.length) {
+      const rival = sel[0].object.userData.rival;
+      if (rival && rival !== this.state.active) this.selectRival(rival);
+      this._orbiting = true; this._lastX = e.clientX; this._lastY = e.clientY;
+      try { this.renderer.domElement.setPointerCapture(e.pointerId); } catch (x) {}
+      return;
+    }
+    // orbit
+    this._orbiting = true; this._lastX = e.clientX; this._lastY = e.clientY;
+    try { this.renderer.domElement.setPointerCapture(e.pointerId); } catch (x) {}
+  };
+
+  onPointerMove = (e) => {
+    if (!this.raycaster) return;
+    const THREE = window.THREE;
+    if (this._dragMode === 'rotate' && this._dragPivot) {
+      this.ndcFromEvent(e);
+      this.raycaster.setFromCamera(this._ndc, this.camera);
+      const pivotWorld = this._scrV3a.set(0, 0, 0);
+      this._dragPivot.getWorldPosition(pivotWorld);
+      const camDir = this._scrV3b.set(0, 0, 0);
+      this.camera.getWorldDirection(camDir);
+      const plane = this._scrPlane.setFromNormalAndCoplanarPoint(camDir.negate(), pivotWorld);
+      const target = this._scrV3c.set(0, 0, 0);
+      if (this.raycaster.ray.intersectPlane(plane, target)) {
+        this.aimPivot(this._dragPivot, target);
+      }
+      return;
+    }
+    if (this._dragMode === 'translate') {
+      this.ndcFromEvent(e);
+      this.raycaster.setFromCamera(this._ndc, this.camera);
+      const plane = this._scrPlane.set(this._scrV3b.set(0, 1, 0), 0);
+      const target = this._scrV3a.set(0, 0, 0);
+      if (this.raycaster.ray.intersectPlane(plane, target)) {
+        const rig = this.rigs[this._dragRival];
+        rig.root.position.x = Math.max(-3, Math.min(3, target.x));
+        rig.root.position.z = Math.max(-2.5, Math.min(2.5, target.z));
+        this.updateSelRing();
+      }
+      return;
+    }
+    if (this._panning) {
+      const dx = e.clientX - this._lastX, dy = e.clientY - this._lastY;
+      this._lastX = e.clientX; this._lastY = e.clientY;
+      const right = this._scrV3a.set(0, 0, 0);
+      const up = this._scrV3b.set(0, 0, 0);
+      this.camera.matrixWorld.extractBasis(right, up, this._scrV3c.set(0, 0, 0));
+      const s = this.camRadius * 0.0016;
+      this.camTarget.addScaledVector(right, -dx * s);
+      this.camTarget.addScaledVector(up, dy * s);
+      this.updateCamera();
+      return;
+    }
+    if (this._orbiting) {
+      const dx = e.clientX - this._lastX, dy = e.clientY - this._lastY;
+      this._lastX = e.clientX; this._lastY = e.clientY;
+      this.orbit(-dx * 0.006, -dy * 0.006);
+      return;
+    }
+    // hover highlight
+    this.hoverHighlight(e);
+  };
+
+  onPointerUp = (e) => {
+    if (this._dragMode === 'rotate' && this._dragJointName) {
+      // commit euler to pose state
+      const pv = this._dragPivot;
+      const rival = this._dragRival;
+      this._pose[rival].joints[this._dragJointName] = {
+        x: Math.round(pv.rotation.x * this.R2D),
+        y: Math.round(pv.rotation.y * this.R2D),
+        z: Math.round(pv.rotation.z * this.R2D),
+      };
+      this.setState({ pose: this._pose });
+      this.snapshot(); this.persist();
+    } else if (this._dragMode === 'translate') {
+      const rig = this.rigs[this._dragRival];
+      this._pose[this._dragRival].transform.posX = +rig.root.position.x.toFixed(2);
+      this._pose[this._dragRival].transform.posZ = +rig.root.position.z.toFixed(2);
+      this.setState({ pose: this._pose });
+      this.snapshot(); this.persist();
+    }
+    this._dragMode = null; this._dragPivot = null; this._dragJointName = null; this._dragRival = null;
+    this._orbiting = false; this._panning = false;
+  };
+
+  aimPivot(pivot, targetWorld) {
+    const parent = pivot.parent;
+    // _scrV3b is free here (camDir already consumed); use it as the worldToLocal scratch
+    this._scrV3b.copy(targetWorld);
+    parent.worldToLocal(this._scrV3b);
+    const dir = this._scrV3b.sub(pivot.position);
+    if (dir.lengthSq() < 1e-6) return;
+    dir.normalize();
+    // _scrV3c is free here (intersectPlane result already consumed)
+    const q = this._scrQuat.setFromUnitVectors(this._scrV3c.set(0, -1, 0), dir);
+    pivot.quaternion.copy(q);
+  }
+
+  hoverHighlight(e) {
+    if (this._hoverObj) {
+      this._hoverObj.material.emissive.setHex(0x000000);
+      this._hoverObj = null;
+      this.renderer.domElement.style.cursor = 'default';
+    }
+    this.ndcFromEvent(e);
+    this.raycaster.setFromCamera(this._ndc, this.camera);
+    const hits = this.raycaster.intersectObjects(this.dragTargets, false);
+    if (hits.length) {
+      const o = hits[0].object;
+      if (o.material && o.material.emissive) {
+        o.material.emissive.setHex(0x2f5e8c);
+        this._hoverObj = o;
+      }
+      this.renderer.domElement.style.cursor = 'grab';
+    }
+  }
+
+  // ---------- selection / ring ----------
+  selectRival(rival) {
+    this.setState({ active: rival }, () => this.updateSelRing());
+  }
+  updateSelRing() {
+    if (!this.selRing || !this.rigs) return;
+    const rival = this.state.active;
+    const rig = this.rigs[rival];
+    this.selRing.position.x = rig.root.position.x;
+    this.selRing.position.z = rig.root.position.z;
+    this.selRing.material.color.setHex(rival === 'r1' ? 0x6fae5e : 0xcf5c4f);
+  }
+
+  // ---------- settings ----------
+  applySettings() {
+    const s = this.state.settings;
+    if (this.grid) this.grid.visible = s.grid;
+    if (this.renderer) this.renderer.shadowMap.enabled = s.shadows;
+    const showHandles = s.handles;
+    if (this.dragTargets) {
+      for (const m of this.dragTargets) {
+        if (m.userData.translate) continue;
+        m.visible = showHandles;
+        if (m.material) m.material.opacity = showHandles ? 0.42 : 0.0;
+      }
+    }
+    // re-render shadows toggle requires material update
+    if (this.scene) this.scene.traverse((o) => { if (o.isMesh && o.material) o.material.needsUpdate = true; });
+  }
+
+  // ---------- animation loop ----------
+  animate = () => {
+    if (!this.renderer) return; // guard: stop if disposed
+    this._raf = requestAnimationFrame(this.animate);
+    this.renderer.render(this.scene, this.camera);
+    this.updateLabels();
+  };
+
+  updateLabels() {
+    const show = this.state.settings.labels;
+    const place = (el, rig) => {
+      if (!el) return;
+      if (!show) { el.style.transform = 'translate(-9999px,-9999px)'; return; }
+      const v = this._scrV3a;
+      rig.headBone.getWorldPosition(v);
+      v.y += 0.42;
+      v.project(this.camera);
+      if (v.z > 1) { el.style.transform = 'translate(-9999px,-9999px)'; return; }
+      const rect = this.renderer.domElement.getBoundingClientRect();
+      const x = (v.x * 0.5 + 0.5) * rect.width;
+      const y = (-v.y * 0.5 + 0.5) * rect.height;
+      el.style.transform = 'translate(' + x + 'px,' + y + 'px) translate(-50%,-100%)';
+    };
+    place(this.labelR1El, this.rigs.r1);
+    place(this.labelR2El, this.rigs.r2);
+  }
+
+  // ---------- undo / redo ----------
+  _undo = []; _redo = [];
+  snapshotInit() {
+    this._undo = [this.snapState()]; this._redo = [];
+    this.setState({ undoLen: 0, redoLen: 0 });
+  }
+  snapState() { return JSON.stringify({ pose: this._pose, weapons: this.state.weapons }); }
+  snapshot() {
+    this._undo.push(this.snapState());
+    if (this._undo.length > 50) this._undo.shift();
+    this._redo = [];
+    this.setState({ undoLen: this._undo.length - 1, redoLen: 0 });
+  }
+  applySnap(str) {
+    const d = JSON.parse(str);
+    this._pose = d.pose;
+    this.setState({ pose: this._pose, weapons: d.weapons });
+    this.setWeaponMesh('r1', d.weapons.r1);
+    this.setWeaponMesh('r2', d.weapons.r2);
+    this.applyAll('r1'); this.applyAll('r2');
+    this.persist();
+  }
+  onUndo = () => {
+    if (this._undo.length <= 1) return;
+    const cur = this._undo.pop();
+    this._redo.push(cur);
+    this.applySnap(this._undo[this._undo.length - 1]);
+    this.setState({ undoLen: this._undo.length - 1, redoLen: this._redo.length });
+  };
+  onRedo = () => {
+    if (!this._redo.length) return;
+    const s = this._redo.pop();
+    this._undo.push(s);
+    this.applySnap(s);
+    this.setState({ undoLen: this._undo.length - 1, redoLen: this._redo.length });
+  };
+
+  // ---------- handlers ----------
+  selectR1 = () => this.selectRival('r1');
+  selectR2 = () => this.selectRival('r2');
+  setRopera = () => this.setWeapon('ropera');
+  setEspada = () => this.setWeapon('espadalarga');
+
+  onSlider = (joint, axis, deg) => (e) => {
+    let v = parseFloat(e.target.value);
+    if (isNaN(v)) return;
+    const rival = this.state.active;
+    if (joint === 'transform') this._pose[rival].transform[axis] = v;
+    else this._pose[rival].joints[joint][axis] = v;
+    this.applyOne(rival, joint, axis, v);
+    this.setState({ pose: this._pose });
+    clearTimeout(this._commitT);
+    this._commitT = setTimeout(() => { this.snapshot(); this.persist(); }, 350);
+  };
+
+  applyPreset = (id) => () => {
+    const rival = this.state.active;
+    const weapon = this.state.weapons[rival];
+    const override = ((this.state.customPresets || {})[weapon] || []).find((p) => p.baseId === id && p.isOverride);
+    this._pose[rival].joints = override ? JSON.parse(JSON.stringify(override.joints)) : this.poseByName(id);
+    this.setState({ pose: this._pose }, () => { this.applyAll(rival); this.snapshot(); this.persist(); });
+    this.flash('Postura aplicada a ' + (rival === 'r1' ? 'Rival 1' : 'Rival 2'));
+  };
+
+  toggleGroup = (key) => () => this.setState({ openGroup: this.state.openGroup === key ? '' : key });
+
+  onScreenshot = () => {
+    if (!this.renderer || !this.scene || !this.camera) return;
+    this.renderer.render(this.scene, this.camera);
+    const dataURL = this.renderer.domElement.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = dataURL;
+    a.download = 'hema-poses-' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    this.flash('Captura descargada ✓');
+  };
+
+  onResetPose = () => {
+    const rival = this.state.active;
+    this._pose[rival] = this.basePose(rival);
+    this.setState({ pose: this._pose }, () => { this.applyAll(rival); this.snapshot(); this.persist(); });
+    this.flash('Postura reiniciada');
+  };
+
+  onToggleSettings = () => this.setState({ showSettings: !this.state.showSettings });
+  onToggleHistory = () => this.setState({ showHistory: !this.state.showHistory });
+  stop = (e) => { e.stopPropagation(); };
+
+  toggleSetting = (key) => (e) => {
+    const settings = Object.assign({}, this.state.settings, { [key]: e.target.checked });
+    this.setState({ settings }, () => { this.applySettings(); this.persist(); });
+  };
+
+  onNotes = (e) => {
+    this.setState({ notes: e.target.value });
+    clearTimeout(this._notesT);
+    this._notesT = setTimeout(() => this.persist(), 400);
+  };
+  onSceneName = (e) => this.setState({ sceneName: e.target.value });
+
+  onSaveScene = () => {
+    const name = (this.state.sceneName || '').trim() || ('Escena ' + (this.state.scenes.length + 1));
+    const scene = {
+      id: 'sc_' + Date.now(),
+      name,
+      ts: Date.now(),
+      note: this.state.notes,
+      data: { pose: JSON.parse(JSON.stringify(this._pose)), weapons: Object.assign({}, this.state.weapons) },
+    };
+    const scenes = [scene].concat(this.state.scenes);
+    this.setState({ scenes, sceneName: '' }, () => this.persist());
+    this.flash('Escena «' + name + '» guardada');
+  };
+
+  loadScene = (id) => () => {
+    const sc = this.state.scenes.find((s) => s.id === id);
+    if (!sc) return;
+    this._pose = JSON.parse(JSON.stringify(sc.data.pose));
+    this.setState({ pose: this._pose, weapons: Object.assign({}, sc.data.weapons), notes: sc.note || this.state.notes, showHistory: false }, () => {
+      this.setWeaponMesh('r1', this.state.weapons.r1);
+      this.setWeaponMesh('r2', this.state.weapons.r2);
+      this.applyAll('r1'); this.applyAll('r2');
+      this.snapshot(); this.persist();
+    });
+    this.flash('Escena «' + sc.name + '» cargada');
+  };
+
+  deleteScene = (id) => () => {
+    const scenes = this.state.scenes.filter((s) => s.id !== id);
+    this.setState({ scenes }, () => this.persist());
+  };
+
+  // ---------- custom presets ----------
+  onNewPresetName = (e) => this.setState({ newPresetName: e.target.value });
+
+  onSavePreset = () => {
+    const name = (this.state.newPresetName || '').trim();
+    if (!name) { this.flash('Escribe un nombre para la postura'); return; }
+    const rival = this.state.active;
+    const weapon = this.state.weapons[rival];
+    const joints = JSON.parse(JSON.stringify(this._pose[rival].joints));
+    const cp = JSON.parse(JSON.stringify(this.state.customPresets));
+    if (!cp[weapon]) cp[weapon] = [];
+    const idx = cp[weapon].findIndex((p) => !p.isOverride && p.label.toLowerCase() === name.toLowerCase());
+    const item = { id: 'cp_' + Date.now(), label: name, glyph: '✦', desc: 'Postura personalizada', joints };
+    if (idx >= 0) { cp[weapon][idx] = Object.assign({}, cp[weapon][idx], { joints, label: name }); this.flash('Postura «' + name + '» actualizada'); }
+    else { cp[weapon].push(item); this.flash('Postura «' + name + '» guardada'); }
+    this.setState({ customPresets: cp, newPresetName: '' }, () => this.persist());
+  };
+
+  applyCustomPreset = (p) => () => {
+    const rival = this.state.active;
+    this._pose[rival].joints = JSON.parse(JSON.stringify(p.joints));
+    this.setState({ pose: this._pose }, () => { this.applyAll(rival); this.snapshot(); this.persist(); });
+    this.flash('Postura «' + p.label + '» aplicada');
+  };
+
+  onDeleteCustomPreset = (weapon, id) => () => {
+    const cp = JSON.parse(JSON.stringify(this.state.customPresets));
+    cp[weapon] = (cp[weapon] || []).filter((p) => p.id !== id);
+    this.setState({ customPresets: cp }, () => this.persist());
+    this.flash('Postura eliminada');
+  };
+
+  onStartPresetEdit = (editId, currentLabel) => () => {
+    this.setState({ editingPresetId: editId, editingPresetValue: currentLabel });
+  };
+
+  onEditPresetInput = (e) => {
+    this.setState({ editingPresetValue: e.target.value });
+  };
+
+  onCancelPresetEdit = () => {
+    this.setState({ editingPresetId: null, editingPresetValue: '' });
+  };
+
+  onCommitPresetEdit = (editId, weapon, presetId, isBuiltin) => () => {
+    const newLabel = (this.state.editingPresetValue || '').trim();
+    if (!newLabel) { this.setState({ editingPresetId: null, editingPresetValue: '' }); return; }
+    if (isBuiltin) {
+      const rKey = weapon + '.' + presetId;
+      const renamedPresets = Object.assign({}, this.state.renamedPresets || {}, { [rKey]: newLabel });
+      const cp = JSON.parse(JSON.stringify(this.state.customPresets));
+      if (cp[weapon]) {
+        const ovIdx = cp[weapon].findIndex((p) => p.baseId === presetId && p.isOverride);
+        if (ovIdx >= 0) cp[weapon][ovIdx] = Object.assign({}, cp[weapon][ovIdx], { label: newLabel });
+      }
+      this.setState({ renamedPresets, customPresets: cp, editingPresetId: null, editingPresetValue: '' }, () => this.persist());
+    } else {
+      const cp = JSON.parse(JSON.stringify(this.state.customPresets));
+      const idx = (cp[weapon] || []).findIndex((p) => p.id === presetId);
+      if (idx >= 0) cp[weapon][idx] = Object.assign({}, cp[weapon][idx], { label: newLabel });
+      this.setState({ customPresets: cp, editingPresetId: null, editingPresetValue: '' }, () => this.persist());
+    }
+    this.flash('Postura renombrada');
+  };
+
+  onUpdatePresetPos = (editId, weapon, presetId, isBuiltin) => () => {
+    const rival = this.state.active;
+    const joints = JSON.parse(JSON.stringify(this._pose[rival].joints));
+    const cp = JSON.parse(JSON.stringify(this.state.customPresets));
+    if (!cp[weapon]) cp[weapon] = [];
+    if (isBuiltin) {
+      const rKey = weapon + '.' + presetId;
+      const basePreset = (this.PRESETS[weapon] || []).find((p) => p.id === presetId) || {};
+      const displayLabel = (this.state.renamedPresets || {})[rKey] || basePreset.label || presetId;
+      const ovIdx = cp[weapon].findIndex((p) => p.baseId === presetId && p.isOverride);
+      const item = { id: 'override_' + presetId + '_' + weapon, baseId: presetId, label: displayLabel, glyph: '✦', desc: 'Postura modificada', joints, isOverride: true };
+      if (ovIdx >= 0) cp[weapon][ovIdx] = item;
+      else cp[weapon].push(item);
+    } else {
+      const idx = cp[weapon].findIndex((p) => p.id === presetId);
+      if (idx >= 0) cp[weapon][idx] = Object.assign({}, cp[weapon][idx], { joints });
+    }
+    this.setState({ customPresets: cp }, () => this.persist());
+    this.flash('Posición actualizada');
+  };
+
+  flash(msg) {
+    this.setState({ toast: msg });
+    clearTimeout(this._toastT);
+    this._toastT = setTimeout(() => this.setState({ toast: '' }), 1900);
+  }
+
+  // ---------- refs ----------
+  mountRef = (el) => { this.mountEl = el; };
+  labelRefR1 = (el) => { this.labelR1El = el; };
+  labelRefR2 = (el) => { this.labelR2El = el; };
+
+  // ---------- render ----------
+  renderVals() {
+    const st = this.state;
+    const active = st.active;
+    const pose = st.pose || { r1: this.basePose('r1'), r2: this.basePose('r2') };
+    const ap = pose[active];
+    const activeHex = active === 'r1' ? '#6fae5e' : '#cf5c4f';
+    const weapon = st.weapons[active];
+
+    const sliderVal = (it) => it.joint === 'transform' ? ap.transform[it.axis] : ap.joints[it.joint][it.axis];
+
+    const groups = this.GROUPS_DEF.map((g) => ({
+      key: g.key,
+      label: g.label,
+      open: st.openGroup === g.key,
+      headBg: st.openGroup === g.key ? '#1a2a3a' : '#142030',
+      caret: st.openGroup === g.key ? 'rotate(0deg)' : 'rotate(-90deg)',
+      onToggle: this.toggleGroup(g.key),
+      sliders: g.items.map((it) => {
+        const v = sliderVal(it);
+        return {
+          label: it.label, min: it.min, max: it.max, step: it.step,
+          value: v,
+          display: it.deg ? Math.round(v) : (Math.round(v * 100) / 100),
+          onInput: this.onSlider(it.joint, it.axis, it.deg),
+        };
+      }),
+    }));
+
+    const renamedPresets = st.renamedPresets || {};
+    const builtinList = (this.PRESETS[weapon] || []).map((p) => {
+      const rKey = weapon + '.' + p.id;
+      const displayLabel = renamedPresets[rKey] || p.label;
+      const hasOverride = ((st.customPresets || {})[weapon] || []).some((cp) => cp.baseId === p.id && cp.isOverride);
+      const editId = 'b_' + rKey;
+      const isEditing = st.editingPresetId === editId;
+      return {
+        label: displayLabel, desc: p.desc, showDelete: false, isEditing, notEditing: !isEditing,
+        editVal: isEditing ? st.editingPresetValue : displayLabel,
+        onEditInput: this.onEditPresetInput,
+        onCommitEdit: this.onCommitPresetEdit(editId, weapon, p.id, true),
+        onCancelEdit: this.onCancelPresetEdit,
+        onEdit: this.onStartPresetEdit(editId, displayLabel),
+        onUpdatePos: this.onUpdatePresetPos(editId, weapon, p.id, true),
+        onApply: this.applyPreset(p.id), onDelete: null,
+        border: hasOverride ? '#2a4a3a' : '#2a3a4a',
+        bg: hasOverride ? '#0f1a14' : '#0f1822',
+        text: hasOverride ? '#8fd67a' : '#c7d2dd',
+      };
+    });
+    const customList = ((st.customPresets || {})[weapon] || [])
+      .filter((p) => !p.isOverride)
+      .map((p) => {
+        const editId = 'c_' + p.id;
+        const isEditing = st.editingPresetId === editId;
+        return {
+          label: p.label, desc: p.desc || 'Postura personalizada', showDelete: !isEditing, isEditing, notEditing: !isEditing,
+          editVal: isEditing ? st.editingPresetValue : p.label,
+          onEditInput: this.onEditPresetInput,
+          onCommitEdit: this.onCommitPresetEdit(editId, weapon, p.id, false),
+          onCancelEdit: this.onCancelPresetEdit,
+          onEdit: this.onStartPresetEdit(editId, p.label),
+          onUpdatePos: this.onUpdatePresetPos(editId, weapon, p.id, false),
+          onApply: this.applyCustomPreset(p),
+          onDelete: this.onDeleteCustomPreset(weapon, p.id),
+          border: '#2a4060', bg: '#111f2e', text: '#9fc2f4',
+        };
+      });
+    const presetList = builtinList.concat(customList);
+
+    const scenes = st.scenes.map((s) => ({
+      name: s.name,
+      when: this.fmtDate(s.ts),
+      note: s.note && s.note.trim() ? s.note : '— sin apuntes —',
+      onLoad: this.loadScene(s.id),
+      onDelete: this.deleteScene(s.id),
+    }));
+
+    const activeNameShort = active === 'r1' ? 'RIVAL 1' : 'RIVAL 2';
+    const activeNameUpper = active === 'r1' ? 'RIVAL 1 (VERDE)' : 'RIVAL 2 (ROJO)';
+
+    return {
+      userName: this.props.userName ?? 'Juan Pérez',
+      mountRef: this.mountRef,
+      labelRefR1: this.labelRefR1,
+      labelRefR2: this.labelRefR2,
+      notReady: !st.ready,
+
+      // toolbar
+      onScreenshot: this.onScreenshot,
+      onUndo: this.onUndo, onRedo: this.onRedo, onResetPose: this.onResetPose, onToggleSettings: this.onToggleSettings,
+      undoDisabled: st.undoLen <= 0, redoDisabled: st.redoLen <= 0,
+      undoOpacity: st.undoLen <= 0 ? '0.4' : '1', redoOpacity: st.redoLen <= 0 ? '0.4' : '1',
+      settingsBtnBg: st.showSettings ? '#21344a' : '#1c2937',
+      showSettings: st.showSettings,
+      setGrid: st.settings.grid, setLabels: st.settings.labels, setShadows: st.settings.shadows, setHandles: st.settings.handles,
+      onToggleGrid: this.toggleSetting('grid'), onToggleLabels: this.toggleSetting('labels'),
+      onToggleShadows: this.toggleSetting('shadows'), onToggleHandles: this.toggleSetting('handles'),
+
+      // camera
+      camUp: this.camUp, camDown: this.camDown, camLeft: this.camLeft, camRight: this.camRight,
+      camReset: this.camReset, camZoomIn: this.camZoomIn, camZoomOut: this.camZoomOut,
+
+      // rival selector
+      selectR1: this.selectR1, selectR2: this.selectR2,
+      r1Border: active === 'r1' ? '#6fae5e' : '#2a3a4a',
+      r2Border: active === 'r2' ? '#cf5c4f' : '#2a3a4a',
+      r1Bg: active === 'r1' ? '#1a2b1e' : '#0f1822',
+      r2Bg: active === 'r2' ? '#2b1a18' : '#0f1822',
+      r1Text: active === 'r1' ? '#86d27a' : '#8a99a8',
+      r2Text: active === 'r2' ? '#f08a7e' : '#8a99a8',
+
+      // weapon
+      activeNameUpper,
+      activeHex,
+      accentBar: activeHex,
+      roperaBorder: weapon === 'ropera' ? activeHex : '#2a3a4a',
+      espadaBorder: weapon === 'espadalarga' ? activeHex : '#2a3a4a',
+      roperaBg: weapon === 'ropera' ? '#16222e' : '#0f1822',
+      espadaBg: weapon === 'espadalarga' ? '#16222e' : '#0f1822',
+      roperaText: weapon === 'ropera' ? '#e6edf4' : '#9aa9b8',
+      espadaText: weapon === 'espadalarga' ? '#e6edf4' : '#9aa9b8',
+      setRopera: this.setRopera, setEspada: this.setEspada,
+
+      // presets
+      presetsActive: presetList,
+      newPresetName: st.newPresetName,
+      onNewPresetName: this.onNewPresetName,
+      onSavePreset: this.onSavePreset,
+
+      // fine adjust
+      activeNameShort, groups,
+
+      // scenes
+      sceneName: st.sceneName, onSceneName: this.onSceneName, onSaveScene: this.onSaveScene,
+      scenes,
+      scenesFull: scenes,
+      noScenes: scenes.length === 0,
+
+      // notes
+      notesValue: st.notes, onNotes: this.onNotes,
+      onToggleHistory: this.onToggleHistory, showHistory: st.showHistory,
+      stop: this.stop,
+
+      toast: st.toast,
+    };
+  }
+
+  fmtDate(ts) {
+    try {
+      const d = new Date(ts);
+      const p = (n) => (n < 10 ? '0' + n : '' + n);
+      return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    } catch (e) { return ''; }
+  }
+}
+</script>
+</body>
+</html>

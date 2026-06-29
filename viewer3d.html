@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0c131b; overflow:hidden; width:100vw; height:100vh; }
+#overlay { position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#6fae5e;font:13px monospace;background:#0c131b;z-index:10; }
+#dbg { position:fixed;top:4px;left:4px;color:#0f0;font:10px monospace;z-index:20;pointer-events:none;background:rgba(0,0,0,.6);padding:2px 4px;max-width:400px; }
+#gizmo { position:fixed;bottom:10px;right:10px;width:80px;height:80px;pointer-events:none;z-index:5; }
+</style>
+</head>
+<body>
+<div id="overlay">Cargando…</div>
+<div id="dbg"></div>
+<canvas id="gizmo"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/KTX2Loader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/meshoptimizer/meshopt_decoder.js"></script>
+<script>
+// KTX2 shim: return blank texture so GLB loads even with KTX2 textures
+(function(){
+  const orig = THREE.GLTFLoader.prototype.setKTX2Loader;
+  THREE.GLTFLoader.prototype._shimKTX2 = true;
+  // Patch after load
+  const _parse = THREE.GLTFLoader.prototype.parse;
+  THREE.GLTFLoader.prototype.parse = function(data, path, onLoad, onError){
+    if(!this.ktx2Loader){
+      // install a shim that returns white textures
+      this.ktx2Loader = {
+        load: function(url, onLoad2){ 
+          const t = new THREE.DataTexture(new Uint8Array([255,255,255,255]),1,1,THREE.RGBAFormat);
+          t.needsUpdate=true;
+          if(onLoad2) onLoad2(t);
+        },
+        detectSupport: function(){ return this; },
+        setTranscoderPath: function(){ return this; },
+      };
+    }
+    return _parse.call(this, data, path, onLoad, onError);
+  };
+})();
+</script>
+<script>
+'use strict';
+
+// ── Renderer ──────────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:false });
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+const canvas = renderer.domElement;
+canvas.style.cssText = 'display:block;touch-action:none;user-select:none;';
+document.body.appendChild(canvas);
+
+// ── Scene ─────────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0c131b);
+scene.fog = new THREE.Fog(0x0c131b, 9, 22);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 100);
+let camTheta=0, camPhi=1.32, camR=4.9;
+const camTarget = new THREE.Vector3(0,1,0);
+function camUpdate(){
+  camera.position.set(
+    camTarget.x + camR*Math.sin(camPhi)*Math.sin(camTheta),
+    camTarget.y + camR*Math.cos(camPhi),
+    camTarget.z + camR*Math.sin(camPhi)*Math.cos(camTheta)
+  );
+  camera.lookAt(camTarget);
+}
+camUpdate();
+
+scene.add(new THREE.HemisphereLight(0x9fb6d0,0x141a20,0.85));
+const key = new THREE.DirectionalLight(0xfff1dd,1.25); key.position.set(3.5,7,4); scene.add(key);
+const rim = new THREE.DirectionalLight(0x6f8fbf,0.5); rim.position.set(-5,4,-5); scene.add(rim);
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(40,40), new THREE.MeshStandardMaterial({color:0x10181f,roughness:0.95}));
+floor.rotation.x = -Math.PI/2; scene.add(floor);
+const grid = new THREE.GridHelper(40,80,0x39536b,0x223040);
+grid.position.y=0.001; grid.material.transparent=true; grid.material.opacity=0.6; scene.add(grid);
+
+const selRing = new THREE.Mesh(
+  new THREE.RingGeometry(0.34,0.42,48),
+  new THREE.MeshBasicMaterial({color:0x6fae5e,transparent:true,opacity:0.7,side:THREE.DoubleSide})
+);
+selRing.rotation.x=-Math.PI/2; selRing.position.y=0.012; scene.add(selRing);
+
+// ── Gizmo ─────────────────────────────────────────────────────────────────────
+const gc = document.getElementById('gizmo'); gc.width=80; gc.height=80;
+const gx = gc.getContext('2d');
+const GAXES=[{v:new THREE.Vector3(1,0,0),color:'#f55',label:'X'},{v:new THREE.Vector3(0,1,0),color:'#5c5',label:'Y'},{v:new THREE.Vector3(0,0,1),color:'#59f',label:'Z'}];
+function drawGizmo(){
+  gx.clearRect(0,0,80,80);
+  const q=new THREE.Quaternion(); camera.getWorldQuaternion(q);
+  const cx=40,cy=40,r=28;
+  GAXES.map(a=>{const vp=a.v.clone().applyQuaternion(q.clone().invert());return{x:cx+vp.x*r,y:cy-vp.y*r,z:vp.z,color:a.color,label:a.label};})
+    .sort((a,b)=>a.z-b.z).forEach(p=>{
+      gx.beginPath();gx.moveTo(cx,cy);gx.lineTo(p.x,p.y);gx.strokeStyle=p.color;gx.lineWidth=2;gx.stroke();
+      gx.beginPath();gx.arc(p.x,p.y,5,0,Math.PI*2);gx.fillStyle=p.color;gx.fill();
+      gx.fillStyle='#fff';gx.font='bold 9px monospace';gx.textAlign='center';gx.textBaseline='middle';gx.fillText(p.label,p.x,p.y);
+    });
+}
+
+// ── Bone map ─────────────────────────────────────────────────────────────────
+const BONE_MAP={
+  spine:'mixamorig_Spine2',head:'mixamorig_Head',
+  shoulderR:'mixamorig_RightArm',elbowR:'mixamorig_RightForeArm',wristR:'mixamorig_RightHand',
+  shoulderL:'mixamorig_LeftArm',elbowL:'mixamorig_LeftForeArm',wristL:'mixamorig_LeftHand',
+  hipR:'mixamorig_RightUpLeg',kneeR:'mixamorig_RightLeg',
+  hipL:'mixamorig_LeftUpLeg',kneeL:'mixamorig_LeftLeg',
+};
+const FINGER_R=['mixamorig_RightHandIndex1','mixamorig_RightHandIndex2','mixamorig_RightHandIndex3','mixamorig_RightHandMiddle1','mixamorig_RightHandMiddle2','mixamorig_RightHandMiddle3','mixamorig_RightHandRing1','mixamorig_RightHandRing2','mixamorig_RightHandRing3','mixamorig_RightHandPinky1','mixamorig_RightHandPinky2','mixamorig_RightHandPinky3'];
+const FINGER_L=['mixamorig_LeftHandIndex1','mixamorig_LeftHandIndex2','mixamorig_LeftHandIndex3','mixamorig_LeftHandMiddle1','mixamorig_LeftHandMiddle2','mixamorig_LeftHandMiddle3','mixamorig_LeftHandRing1','mixamorig_LeftHandRing2','mixamorig_LeftHandRing3','mixamorig_LeftHandPinky1','mixamorig_LeftHandPinky2','mixamorig_LeftHandPinky3'];
+const THUMB_R=['mixamorig_RightHandThumb1','mixamorig_RightHandThumb2','mixamorig_RightHandThumb3'];
+const THUMB_L=['mixamorig_LeftHandThumb1','mixamorig_LeftHandThumb2','mixamorig_LeftHandThumb3'];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const rigs = {};
+let activeRival = 'r1';
+const currentPose = {r1:{transform:{posX:0,posZ:0,faceY:0},joints:{}},r2:{transform:{posX:0,posZ:0,faceY:0},joints:{}}};
+
+// Drag state
+let isDragging=false, dragSphere=null, dragRival=null, dragMode=null;
+let dragStartClient={x:0,y:0}, dragStartEuler={x:0,y:0,z:0};
+// Orbit state
+let isOrbiting=false, isPanning=false, orbitStart={x:0,y:0}, orbitStartTheta=0, orbitStartPhi=0;
+let panStartClient={x:0,y:0}, panStartTarget=new THREE.Vector3();
+// Translate
+const dragPlane = new THREE.Plane(new THREE.Vector3(0,1,0),0);
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const _wp = new THREE.Vector3();
+const D2R = Math.PI/180;
+
+// Handle spheres live at scene root (world space)
+const handleSpheres = []; // {mesh, rival, joint, bone, translate}
+
+// ── Selection ring ────────────────────────────────────────────────────────────
+function updateSelRing(){
+  const rig=rigs[activeRival]; if(!rig) return;
+  const hb=rig.bones['mixamorig_Hips']; if(!hb) return;
+  hb.getWorldPosition(_wp); selRing.position.x=_wp.x; selRing.position.z=_wp.z;
+  selRing.material.color.setHex(activeRival==='r1'?0x6fae5e:0xcf5c4f);
+}
+
+// ── Pose application ──────────────────────────────────────────────────────────
+function applyPose(rival, pose){
+  const rig=rigs[rival]; if(!rig||!pose) return;
+  const hb=rig.bones['mixamorig_Hips'];
+  if(hb&&rig.initHipsPos){
+    hb.position.x=rig.initHipsPos.x+(pose.transform.posX||0)/0.01;
+    hb.position.z=rig.initHipsPos.z+(pose.transform.posZ||0)/0.01;
+    const iq=rig.initQuat['mixamorig_Hips'];
+    const fq=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),(pose.transform.faceY||0)*D2R);
+    if(iq) hb.quaternion.copy(iq).multiply(fq); else hb.rotation.y=(pose.transform.faceY||0)*D2R;
+  }
+  for(const name in pose.joints){
+    const bn=BONE_MAP[name]; if(!bn) continue;
+    const bone=rig.bones[bn]; if(!bone) continue;
+    const r=pose.joints[name];
+    const iq=rig.initQuat[bn];
+    if(iq) bone.quaternion.copy(iq).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler((r.x||0)*D2R,(r.y||0)*D2R,(r.z||0)*D2R,'XYZ')));
+    else bone.rotation.set((r.x||0)*D2R,(r.y||0)*D2R,(r.z||0)*D2R,'XYZ');
+  }
+  // Fingers
+  const fr=(pose.joints.fingerR||{}).x||0, fl=(pose.joints.fingerL||{}).x||0;
+  applyFingers(rig,FINGER_R,THUMB_R,fr,1);
+  applyFingers(rig,FINGER_L,THUMB_L,fl,-1);
+  // Sword mount
+  if(rig.swordMount && pose.joints.sword){
+    const sw=pose.joints.sword;
+    const D2R=Math.PI/180;
+    // Base offset encodes the calibrated grip position; sliders are deltas from there
+    rig.swordMount.position.set((sw.slide||0) + 45, (sw.perp||0) + 8, 0);
+    rig.swordMount.rotation.set(
+      (sw.x||0)*D2R + Math.PI + 16*D2R,
+      (sw.y||0)*D2R + 160*D2R,
+      (sw.z||0)*D2R - Math.PI/2 - 63*D2R
+    );
+  }
+}
+function applyFingers(rig,fingers,thumbs,deg,sign){
+  const rad=deg*D2R;
+  fingers.forEach(bn=>{const b=rig.bones[bn];if(!b)return;const iq=rig.initQuat[bn];if(iq)b.quaternion.copy(iq).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(rad,0,0)));else b.rotation.x=rad;});
+  thumbs.forEach(bn=>{const b=rig.bones[bn];if(!b)return;const iq=rig.initQuat[bn];if(iq)b.quaternion.copy(iq).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0,0,sign*rad*0.6)));else b.rotation.z=sign*rad*0.6;});
+}
+
+// ── Build rig ─────────────────────────────────────────────────────────────────
+function buildRig(gltf, rival, teamHex){
+  const root=new THREE.Group();
+  const sc=gltf.scene;
+  const tm=new THREE.MeshStandardMaterial({color:new THREE.Color(teamHex),roughness:0.65,metalness:0.08,skinning:true});
+  const jm=new THREE.MeshStandardMaterial({color:0xaaaaaa,roughness:0.5,metalness:0.1,skinning:true});
+  sc.traverse(c=>{if(!c.isMesh)return;c.castShadow=false;c.receiveShadow=false;c.material=c.name==='Alpha_Joints'?jm:tm;if(c.isSkinnedMesh)c.frustumCulled=false;});
+  const bones={};
+  sc.traverse(c=>{if(c.name)bones[c.name]=c;});
+  const initQuat={};
+  Object.keys(bones).forEach(n=>initQuat[n]=bones[n].quaternion.clone());
+  const initHipsPos=bones['mixamorig_Hips']?bones['mixamorig_Hips'].position.clone():new THREE.Vector3();
+  root.scale.setScalar(0.01);
+  root.add(sc);
+  sc.traverse(c=>{if(c.isSkinnedMesh)c.scale.set(100,100,100);});
+  scene.add(root);
+  rigs[rival]={root,bones,initQuat,initHipsPos};
+  // Weapon mount on right hand
+  const rh=bones['mixamorig_RightHand'];
+  if(rh){const wm=new THREE.Group();wm.scale.setScalar(1);wm.rotation.set(0,Math.PI,Math.PI/2);rh.add(wm);rigs[rival].swordMount=wm;}
+}
+
+// ── Handle spheres (scene-root, world-space) ──────────────────────────────────
+const HANDLE_DEFS=[
+  {key:'spine',bn:'mixamorig_Spine2'},{key:'head',bn:'mixamorig_Head'},
+  {key:'shoulderR',bn:'mixamorig_RightArm'},{key:'elbowR',bn:'mixamorig_RightForeArm'},{key:'wristR',bn:'mixamorig_RightHand'},
+  {key:'shoulderL',bn:'mixamorig_LeftArm'},{key:'elbowL',bn:'mixamorig_LeftForeArm'},{key:'wristL',bn:'mixamorig_LeftHand'},
+  {key:'hipR',bn:'mixamorig_RightUpLeg'},{key:'kneeR',bn:'mixamorig_RightLeg'},
+  {key:'hipL',bn:'mixamorig_LeftUpLeg'},{key:'kneeL',bn:'mixamorig_LeftLeg'},
+];
+function buildHandles(){
+  handleSpheres.length=0;
+  ['r1','r2'].forEach(rival=>{
+    const rig=rigs[rival];if(!rig)return;
+    const mat=new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:0.45,roughness:0.4,depthWrite:false});
+    HANDLE_DEFS.forEach(({key,bn})=>{
+      const bone=rig.bones[bn];if(!bone)return;
+      const m=new THREE.Mesh(new THREE.SphereGeometry(0.08,10,8),mat.clone());
+      m.frustumCulled=false; scene.add(m);
+      handleSpheres.push({mesh:m,rival,joint:key,bone});
+    });
+    // Hips translate handle
+    const hips=rig.bones['mixamorig_Hips'];
+    if(hips){
+      const m=new THREE.Mesh(new THREE.SphereGeometry(0.1,10,8),mat.clone());
+      m.frustumCulled=false; scene.add(m);
+      handleSpheres.push({mesh:m,rival,joint:'hips',bone:hips,translate:true});
+    }
+  });
+}
+
+// Track handles to bone world positions
+function updateHandles(){
+  handleSpheres.forEach(h=>{
+    h.bone.updateWorldMatrix(true,false);
+    h.bone.getWorldPosition(_wp);
+    h.mesh.position.copy(_wp);
+  });
+}
+
+// ── Load ──────────────────────────────────────────────────────────────────────
+let loadCount=0;
+function loadRig(rival,teamHex){
+  const loader=new THREE.GLTFLoader();
+  fetch('./mannequins/mannequin.glb').then(r=>r.blob()).then(blob=>{
+    const url=URL.createObjectURL(blob);
+    loader.load(url,gltf=>{
+      URL.revokeObjectURL(url);
+      buildRig(gltf,rival,teamHex);
+      if(++loadCount===2){
+        buildHandles();
+        document.getElementById('overlay').style.display='none';
+        window.parent.postMessage({type:'ready'},'*');
+      }
+    },null,e=>{console.error(e);if(++loadCount===2)document.getElementById('overlay').style.display='none';});
+  });
+}
+loadRig('r1',0x6fae5e);
+loadRig('r2',0xcf5c4f);
+
+// ── Weapons ───────────────────────────────────────────────────────────────────
+const weaponCache={};
+function setWeapon(rival,type){
+  const rig=rigs[rival];if(!rig||!rig.swordMount)return;
+  const m=rig.swordMount;
+  while(m.children.length)m.remove(m.children[0]);
+  if(!type||type==='none')return;
+  const isRopera=type==='ropera';
+  const url=isRopera?'./weapons/rapier.glb':'./weapons/longsword.glb';
+  const mat=new THREE.MeshStandardMaterial({color:0xd4dce6,roughness:0.2,metalness:0.9});
+  const mountFn=sc=>{
+    const clone=sc.clone(true);
+    clone.traverse(c=>{if(!c.isMesh)return;c.material=mat;});
+    const box=new THREE.Box3().setFromObject(clone),sz=new THREE.Vector3();box.getSize(sz);
+    const longest=Math.max(sz.x,sz.y,sz.z);
+    const targetCm=isRopera?100:110;
+    const s=longest>0.001?targetCm/longest:1;
+    const center=new THREE.Vector3();box.getCenter(center);
+    clone.position.sub(center);
+    const wrap=new THREE.Group();wrap.scale.setScalar(s);
+    wrap.add(clone);m.add(wrap);
+  };
+  if(weaponCache[type]){mountFn(weaponCache[type]);return;}
+  fetch(url).then(r=>r.blob()).then(blob=>{
+    const burl=URL.createObjectURL(blob);
+    return new Promise((res,rej)=>{
+      const loader=new THREE.GLTFLoader();
+      // KTX2 shim (we override materials)
+      loader.ktx2Loader = {
+        detectSupport:()=>{}, setTranscoderPath:()=>{},
+        init:()=>Promise.resolve(),
+        load:(u,cb)=>{ const t=new THREE.DataTexture(new Uint8Array([200,200,200,255]),1,1,THREE.RGBAFormat); t.needsUpdate=true; cb(t); return t; },
+        parse:(buf,cb)=>{ const t=new THREE.DataTexture(new Uint8Array([200,200,200,255]),1,1,THREE.RGBAFormat); t.needsUpdate=true; if(cb)cb(t); return Promise.resolve(t); },
+      };
+      // Meshopt decoder
+      if(typeof MeshoptDecoder !== 'undefined') loader.setMeshoptDecoder(MeshoptDecoder);
+      loader.load(burl,g=>{URL.revokeObjectURL(burl);res(g);},null,e=>{URL.revokeObjectURL(burl);rej(e);});
+    });
+  }).then(gltf=>{weaponCache[type]=gltf.scene;mountFn(gltf.scene);})
+    .catch(e=>console.warn('Weapon error',e));
+}
+
+// ── postMessage API ───────────────────────────────────────────────────────────
+window.addEventListener('message',e=>{
+  const msg=e.data;if(!msg||!msg.type)return;
+  switch(msg.type){
+    case'setPose': applyPose(msg.rival,msg.pose);Object.assign(currentPose[msg.rival],JSON.parse(JSON.stringify(msg.pose)));break;
+    case'setPoses': ['r1','r2'].forEach(rv=>{applyPose(rv,msg[rv]);Object.assign(currentPose[rv],JSON.parse(JSON.stringify(msg[rv])));});break;
+    case'setWeapon': setWeapon(msg.rival,msg.weaponType);break;
+    case'setActive': activeRival=msg.rival;updateSelRing();break;
+    case'setSettings':
+      grid.visible=msg.settings.grid!==false;
+      floor.visible=msg.settings.floor!==false;
+      handleSpheres.forEach(h=>{h.mesh.visible=msg.settings.handles!==false;});
+      break;
+    case'camReset': camTheta=0;camPhi=1.32;camR=4.9;camTarget.set(0,1,0);camUpdate();break;
+    case'camOrbit': camTheta+=msg.dTheta;camPhi=Math.max(0.18,Math.min(Math.PI-0.18,camPhi+msg.dPhi));camUpdate();break;
+    case'camZoom': camR=Math.max(1.8,Math.min(11,camR*msg.factor));camUpdate();break;
+  }
+});
+
+// ── Pointer events ────────────────────────────────────────────────────────────
+// 2D screen-space pick
+function pickHandle(clientX, clientY){
+  let best=null, bestD=Infinity;
+  const THRESH=40;
+  handleSpheres.forEach(h=>{
+    if(!h.mesh.visible) return;
+    const proj=h.mesh.position.clone().project(camera);
+    const sx=(proj.x+1)/2*innerWidth;
+    const sy=(1-proj.y)/2*innerHeight;
+    const d=Math.hypot(clientX-sx, clientY-sy);
+    if(d<THRESH&&d<bestD){bestD=d;best=h;}
+  });
+  return best;
+}
+
+// Pan mode toggle button
+let panModeOn = false;
+
+canvas.addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+  const h = pickHandle(e.clientX, e.clientY);
+  document.getElementById('dbg').textContent='down h:'+(h?h.joint:'none')+' rival:'+(h?h.rival:'');
+  if(h){
+    isDragging=true; dragSphere=h; dragRival=h.rival;
+    dragStartClient={x:e.clientX,y:e.clientY};
+    if(h.translate){ dragMode='translate'; }
+    else {
+      dragMode='rotate';
+      const jp=(currentPose[h.rival].joints[h.joint])||{x:0,y:0,z:0};
+      dragStartEuler={x:jp.x||0,y:jp.y||0,z:jp.z||0};
+    }
+  } else {
+    if(e.button===2 || e.button===1){
+      isPanning=true;
+      panStartClient={x:e.clientX,y:e.clientY};
+      panStartTarget.copy(camTarget);
+    } else {
+      isOrbiting=true;
+      orbitStart={x:e.clientX,y:e.clientY};
+      orbitStartTheta=camTheta; orbitStartPhi=camPhi;
+    }
+  }
+}, {passive:false});
+
+// Also listen on document for right-click pan (button 2 may not get pointer capture)
+document.addEventListener('pointermove', e=>{
+  if(!isPanning) return;
+  const panSpeed = camR * 0.0012;
+  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
+  const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,1);
+  camTarget.copy(panStartTarget)
+    .addScaledVector(right, -(e.clientX-panStartClient.x)*panSpeed)
+    .addScaledVector(up,    (e.clientY-panStartClient.y)*panSpeed);
+  camUpdate();
+});
+document.addEventListener('pointerup', e=>{
+  if(isPanning) isPanning=false;
+});
+
+canvas.addEventListener('pointermove', e=>{
+  if(!isDragging&&!isOrbiting) return;
+  const dx=e.clientX-dragStartClient.x, dy=e.clientY-dragStartClient.y;
+  if(isDragging&&dragSphere){
+    if(dragMode==='rotate'){
+      const bn=BONE_MAP[dragSphere.joint];
+      const rig=rigs[dragRival];
+      const boneObj = rig&&rig.bones[bn];
+      if(boneObj&&rig.initQuat[bn]){
+        // Axis-lock: horizontal → Y (twist), vertical → Z (flex perpendicular)
+        const absDx = Math.abs(e.clientX - dragStartClient.x);
+        const absDy = Math.abs(e.clientY - dragStartClient.y);
+        let nx, ny, nz;
+        if(absDx >= absDy){
+          nx = dragStartEuler.y + dx*0.5;
+          ny = dragStartEuler.x;
+          nz = dragStartEuler.z;
+        } else {
+          nx = dragStartEuler.y;
+          ny = dragStartEuler.x;
+          nz = dragStartEuler.z - dy*0.5;
+        }
+        boneObj.quaternion.copy(rig.initQuat[bn]).multiply(
+          new THREE.Quaternion().setFromEuler(new THREE.Euler(ny*D2R, nx*D2R, nz*D2R, 'XYZ'))
+        );
+        // Update currentPose live
+        if(!currentPose[dragRival].joints[dragSphere.joint]) currentPose[dragRival].joints[dragSphere.joint]={x:0,y:0,z:0};
+        currentPose[dragRival].joints[dragSphere.joint].x=+ny.toFixed(1);
+        currentPose[dragRival].joints[dragSphere.joint].y=+nx.toFixed(1);
+        currentPose[dragRival].joints[dragSphere.joint].z=+nz.toFixed(1);
+      }
+    } else if(dragMode==='translate'){
+      ndc.x=(e.clientX/innerWidth)*2-1; ndc.y=-(e.clientY/innerHeight)*2+1;
+      raycaster.setFromCamera(ndc,camera);
+      const hit=new THREE.Vector3();
+      if(raycaster.ray.intersectPlane(dragPlane,hit)){
+        const tx=Math.max(-3,Math.min(3,hit.x));
+        const tz=Math.max(-2.5,Math.min(2.5,hit.z));
+        const rig=rigs[dragRival];
+        const hb=rig&&rig.bones['mixamorig_Hips'];
+        if(hb&&rig.initHipsPos){
+          hb.position.x=rig.initHipsPos.x+tx/0.01;
+          hb.position.z=rig.initHipsPos.z+tz/0.01;
+        }
+        window.parent.postMessage({type:'dragMove',rival:dragRival,posX:+tx.toFixed(2),posZ:+tz.toFixed(2)},'*');
+      }
+    }
+  } else if(isPanning){
+    // Pan: move target in camera's right/up plane
+    const panSpeed = camR * 0.0012;
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
+    const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,1);
+    camTarget.copy(panStartTarget)
+      .addScaledVector(right, -(e.clientX-panStartClient.x)*panSpeed)
+      .addScaledVector(up,    (e.clientY-panStartClient.y)*panSpeed);
+    camUpdate();
+  } else if(isOrbiting){
+    camTheta=orbitStartTheta-(e.clientX-orbitStart.x)*0.007;
+    camPhi=Math.max(0.18,Math.min(Math.PI-0.18,orbitStartPhi-(e.clientY-orbitStart.y)*0.007));
+    camUpdate();
+  }
+});
+
+canvas.addEventListener('pointerup', e=>{
+  if(isDragging&&dragMode==='rotate'&&dragSphere){
+    const j=currentPose[dragRival].joints[dragSphere.joint]||{x:0,y:0,z:0};
+    window.parent.postMessage({type:'jointRotated',rival:dragRival,joint:dragSphere.joint,x:j.x,y:j.y,z:j.z||0},'*');
+  }
+  if(isDragging&&dragMode==='translate'){
+    const rig=rigs[dragRival];const hb=rig&&rig.bones['mixamorig_Hips'];
+    if(hb&&rig.initHipsPos){
+      window.parent.postMessage({type:'dragEnd',rival:dragRival,posX:+((hb.position.x-rig.initHipsPos.x)*0.01).toFixed(2),posZ:+((hb.position.z-rig.initHipsPos.z)*0.01).toFixed(2)},'*');
+    }
+  }
+  isDragging=false; dragSphere=null; dragMode=null; isOrbiting=false; isPanning=false;
+  canvas.releasePointerCapture(e.pointerId);
+});
+
+canvas.addEventListener('click', e=>{
+  // Select rival by clicking on mannequin
+  if(!isDragging){
+    ndc.x=(e.clientX/innerWidth)*2-1; ndc.y=-(e.clientY/innerHeight)*2+1;
+    raycaster.setFromCamera(ndc,camera);
+    const meshes=[];
+    Object.values(rigs).forEach(rig=>rig.root.traverse(c=>{if(c.isMesh)meshes.push(c);}));
+    const hits=raycaster.intersectObjects(meshes,false);
+    if(hits.length){
+      const target=hits[0].object;
+      let obj=target; while(obj&&!obj.userData.rival)obj=obj.parent;
+      // Determine rival from mesh name/color
+      const rival=Object.keys(rigs).find(rv=>{let found=false;rigs[rv].root.traverse(c=>{if(c===target)found=true;});return found;});
+      if(rival&&rival!==activeRival){activeRival=rival;updateSelRing();window.parent.postMessage({type:'selectRival',rival},'*');}
+    }
+  }
+});
+
+// Disable context menu on right-click
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  camR=Math.max(1.8,Math.min(11,camR*(e.deltaY>0?1.08:0.93)));
+  camUpdate();
+},{passive:false});
+
+window.addEventListener('resize',()=>{
+  renderer.setSize(innerWidth,innerHeight);
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+// ── Render loop ───────────────────────────────────────────────────────────────
+function animate(){
+  requestAnimationFrame(animate);
+  updateHandles();
+  updateSelRing();
+  renderer.render(scene,camera);
+  drawGizmo();
+}
+animate();
+</script>
+</body>
+</html>
